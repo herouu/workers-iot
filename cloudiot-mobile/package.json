@@ -1,0 +1,40 @@
+{
+  "name": "cloudiot-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "cap:init": "cap init",
+    "cap:add": "cap add android",
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android",
+    "cap:copy": "cap copy android"
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "pinia": "^2.3.0",
+    "axios": "^1.7.9",
+    "vant": "^4.9.11",
+    "@vant/touch-emulator": "^4.9.11",
+    "@capacitor/core": "^7.1.0",
+    "@capacitor/cli": "^7.1.0",
+    "@capacitor/android": "^7.1.0",
+    "@capacitor/push-notifications": "^2.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.7",
+    "typescript": "^5.7.2",
+    "vue-tsc": "^2.2.0",
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.4.49",
+    "autoprefixer": "^10.4.20",
+    "@types/node": "^22.10.5"
+  }
+}
