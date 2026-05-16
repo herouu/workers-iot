@@ -10,6 +10,10 @@ import { realtimeRouter } from './routes/realtime'
 import { withCors } from './middleware/cors'
 import { withAuth } from './middleware/auth'
 import { notFound, jsonError } from './utils/response'
+import { DeviceSession } from './durableObjects/DeviceSession'
+import { SceneExecutor } from './durableObjects/SceneExecutor'
+import { NotificationHub } from './durableObjects/NotificationHub'
+import { RealtimeHub } from './durableObjects/RealtimeHub'
 
 // 创建路由器
 const router = Router()
@@ -57,6 +61,9 @@ router.all('/realtime/*', realtimeRouter)
 
 // 404 处理
 router.all('*', () => notFound())
+
+// 导出 Durable Objects (Wrangler 需要)
+export { DeviceSession, SceneExecutor, NotificationHub, RealtimeHub }
 
 // 导出 worker
 export default {

@@ -7,20 +7,24 @@ export class NotificationHub implements DurableObject {
   private clients: Map<string, WebSocket> = new Map()
   private userId: string
   private notificationQueue: any[] = []
+  private initialized: boolean = false
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state
     this.userId = state.id.name
-    
-    // 加载未发送的通知
-    state.storage.get('queue').then((queue) => {
-      if (queue) {
-        this.notificationQueue = queue
-      }
-    })
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return
+    const queue = await this.state.storage.get('queue')
+    if (queue) {
+      this.notificationQueue = queue
+    }
+    this.initialized = true
   }
 
   async fetch(request: Request): Promise<Response> {
+    await this.ensureInitialized()
     const url = new URL(request.url)
     
     if (url.pathname === '/ws') {

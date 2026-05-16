@@ -6,19 +6,23 @@ export class RealtimeHub implements DurableObject {
   private state: DurableObjectState
   private clients: Map<WebSocket, { userId?: string; subscriptions: Set<string> }> = new Map()
   private deviceStates: Map<string, any> = new Map()
+  private initialized: boolean = false
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state
-    
-    // 从存储加载设备状态
-    state.storage.get('deviceStates').then((saved) => {
-      if (saved) {
-        this.deviceStates = new Map(Object.entries(saved))
-      }
-    })
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return
+    const saved = await this.state.storage.get('deviceStates')
+    if (saved) {
+      this.deviceStates = new Map(Object.entries(saved))
+    }
+    this.initialized = true
   }
 
   async fetch(request: Request): Promise<Response> {
+    await this.ensureInitialized()
     const url = new URL(request.url)
     
     // WebSocket 连接

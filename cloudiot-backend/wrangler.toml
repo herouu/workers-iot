@@ -1,7 +1,7 @@
 name = "cloudiot-backend"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
-node_compat = true
+compatibility_flags = ["nodejs_compat"]
 
 # D1 数据库绑定
 [[d1_databases]]
@@ -36,10 +36,6 @@ class_name = "NotificationHub"
 name = "REALTIME_HUB"
 class_name = "RealtimeHub"
 
-[[durable_objects.bindings]]
-name = "DEVICE_SESSION"
-class_name = "DeviceSession"
-
 # 环境变量
 [vars]
 ENVIRONMENT = "production"
@@ -47,8 +43,13 @@ ENVIRONMENT = "production"
 # 开发环境覆盖
 [env.development]
 name = "cloudiot-backend-dev"
+compatibility_flags = ["nodejs_compat"]
 
-[[d1_databases]]
+[[env.development.d1_databases]]
 binding = "DB"
-database_name = "cloudiot-db-dev"
+database_name = "cloudiot-db"
 database_id = "dev-database-id"
+
+[[env.development.kv_namespaces]]
+binding = "CACHE"
+id = "dev-cache-id"

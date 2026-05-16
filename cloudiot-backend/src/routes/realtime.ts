@@ -3,7 +3,7 @@
  * 处理 WebSocket 连接和设备数据上报
  */
 import { Router } from 'itty-router'
-import { verifyToken } from '../middleware/auth'
+import { verifyToken } from '../utils/jwt'
 
 const router = Router()
 

@@ -7,20 +7,24 @@ export class DeviceSession implements DurableObject {
   private clients: WebSocket[] = []
   private deviceId: string
   private latestState: any = {}
+  private initialized: boolean = false
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state
     this.deviceId = state.id.name
-    
-    // 从存储加载最新状态
-    state.storage.get('latestState').then((saved) => {
-      if (saved) {
-        this.latestState = saved
-      }
-    })
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return
+    const saved = await this.state.storage.get('latestState')
+    if (saved) {
+      this.latestState = saved
+    }
+    this.initialized = true
   }
 
   async fetch(request: Request): Promise<Response> {
+    await this.ensureInitialized()
     const url = new URL(request.url)
     
     if (url.pathname === '/ws') {
