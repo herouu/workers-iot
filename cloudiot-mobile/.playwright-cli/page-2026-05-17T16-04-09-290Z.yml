@@ -1,0 +1,27 @@
+- generic [ref=e3]:
+  - generic [ref=e161]:
+    - generic [ref=e162]:
+      - generic [ref=e163]:
+        - heading "我的设备" [level=1] [ref=e164]
+        - button "添加" [ref=e165] [cursor=pointer]:
+          - generic [ref=e167]: 添加
+      - generic [ref=e168]:
+        - generic [ref=e169]: 全部 (0)
+        - generic [ref=e170]: 在线 (0)
+        - generic [ref=e171]: 离线 (0)
+    - generic [ref=e173]:
+      - img [ref=e175]
+      - paragraph [ref=e193]: 暂无设备
+  - tablist [ref=e144]:
+    - tab " 首页" [ref=e145] [cursor=pointer]:
+      - generic [ref=e147]: 
+      - generic [ref=e148]: 首页
+    - tab " 设备" [selected] [ref=e149] [cursor=pointer]:
+      - generic [ref=e151]: 
+      - generic [ref=e152]: 设备
+    - tab " 场景" [ref=e153] [cursor=pointer]:
+      - generic [ref=e155]: 
+      - generic [ref=e156]: 场景
+    - tab " 设置" [ref=e157] [cursor=pointer]:
+      - generic [ref=e159]: 
+      - generic [ref=e160]: 设置

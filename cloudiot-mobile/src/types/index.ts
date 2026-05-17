@@ -13,9 +13,12 @@ export interface Device {
   name: string
   type: string
   model?: string
+  location?: string
   room?: string
   icon: string
   online: boolean
+  status?: 'on' | 'off'
+  favorite?: boolean
   state: DeviceState
   created_at: number
 }

@@ -27,7 +27,17 @@
 </template>
 
 <script setup lang="ts">
-import type { Device } from '@/types'
+interface Device {
+  id: string
+  name: string
+  type: string
+  room?: string
+  online: boolean
+  state?: {
+    power?: boolean
+    [key: string]: any
+  }
+}
 
 interface Props {
   device: Device

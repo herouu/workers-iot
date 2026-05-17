@@ -1,0 +1,39 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - heading "CloudIoT" [level=1] [ref=e7]
+        - paragraph [ref=e8]: 登录您的账户
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - generic [ref=e12]: 📧
+            - textbox "📧" [ref=e15]:
+              - /placeholder: 邮箱地址
+              - text: test@example.com
+          - generic [ref=e16]:
+            - generic [ref=e17]: 🔒
+            - textbox "🔒" [ref=e20]:
+              - /placeholder: 密码
+              - text: test123456
+        - button "登录" [active] [ref=e22] [cursor=pointer]:
+          - generic [ref=e27]: 登录
+      - generic [ref=e25]:
+        - text: 还没有账户?
+        - link "立即注册" [ref=e26] [cursor=pointer]:
+          - /url: /register
+    - tablist [ref=e28]:
+      - tab " 首页" [ref=e29] [cursor=pointer]:
+        - generic [ref=e31]: 
+        - generic [ref=e32]: 首页
+      - tab " 设备" [ref=e33] [cursor=pointer]:
+        - generic [ref=e35]: 
+        - generic [ref=e36]: 设备
+      - tab " 场景" [ref=e37] [cursor=pointer]:
+        - generic [ref=e39]: 
+        - generic [ref=e40]: 场景
+      - tab " 设置" [ref=e41] [cursor=pointer]:
+        - generic [ref=e43]: 
+        - generic [ref=e44]: 设置
+  - dialog [ref=e45]:
+    - generic [ref=e46]: 登录成功

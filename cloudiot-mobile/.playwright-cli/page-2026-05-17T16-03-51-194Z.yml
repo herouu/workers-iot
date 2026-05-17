@@ -1,0 +1,140 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - heading "CloudIoT" [level=1] [ref=e9]
+          - paragraph [ref=e10]: 凌晨好
+        - generic [ref=e12] [cursor=pointer]: 用
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: 00:03
+          - generic [ref=e16]: 5月18日星期一
+        - generic [ref=e17]:
+          - generic [ref=e18]: 🌤️
+          - generic [ref=e19]: 26°C 晴
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]: 设备状态
+          - generic [ref=e24]: 3 在线
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: ✓
+            - generic [ref=e28]: "3"
+            - generic [ref=e29]: 在线
+          - generic [ref=e30]:
+            - generic [ref=e31]: ○
+            - generic [ref=e32]: "1"
+            - generic [ref=e33]: 离线
+          - generic [ref=e34]:
+            - generic [ref=e35]: 📱
+            - generic [ref=e36]: "4"
+            - generic [ref=e37]: 设备总数
+      - generic [ref=e38]:
+        - generic [ref=e39]: 快捷控制
+        - generic [ref=e40]:
+          - generic [ref=e41] [cursor=pointer]:
+            - generic [ref=e42]: 💡
+            - generic [ref=e43]: 全屋灯光
+            - generic [ref=e44]: 已开启
+          - generic [ref=e45] [cursor=pointer]:
+            - generic [ref=e46]: ❄️
+            - generic [ref=e47]: 空调
+            - generic [ref=e48]: 已关闭
+          - generic [ref=e49] [cursor=pointer]:
+            - generic [ref=e50]: 🌀
+            - generic [ref=e51]: 风扇
+            - generic [ref=e52]: 已关闭
+          - generic [ref=e53] [cursor=pointer]:
+            - generic [ref=e54]: 🚗
+            - generic [ref=e55]: 离家模式
+            - generic [ref=e56]: 已关闭
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - generic [ref=e59]: 场景模式
+          - generic [ref=e60]: 更多 →
+        - generic [ref=e61]:
+          - generic [ref=e62] [cursor=pointer]:
+            - generic [ref=e63]: 🌅
+            - generic [ref=e64]: 早安模式
+            - generic [ref=e65]: 自动开灯+空调
+          - generic [ref=e66] [cursor=pointer]:
+            - generic [ref=e67]: 🎬
+            - generic [ref=e68]: 影院模式
+            - generic [ref=e69]: 灯光调暗+音响
+          - generic [ref=e70] [cursor=pointer]:
+            - generic [ref=e71]: 🌙
+            - generic [ref=e72]: 睡眠模式
+            - generic [ref=e73]: 关闭所有设备
+          - generic [ref=e74] [cursor=pointer]:
+            - generic [ref=e75]: +
+            - generic [ref=e76]: 添加场景
+      - generic [ref=e77]:
+        - generic [ref=e78]:
+          - generic [ref=e79]: 我的设备
+          - generic [ref=e80]: 全部设备 →
+        - feed [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86] [cursor=pointer]:
+              - generic [ref=e87]:
+                - generic [ref=e88]: 💡
+                - generic [ref=e89]:
+                  - generic [ref=e90]: 客厅灯
+                  - generic [ref=e91]: 客厅
+              - generic [ref=e92]:
+                - switch [checked] [ref=e93]
+                - generic [ref=e95]: 在线
+            - generic [ref=e96] [cursor=pointer]:
+              - generic [ref=e97]:
+                - generic [ref=e98]: ❄️
+                - generic [ref=e99]:
+                  - generic [ref=e100]: 卧室空调
+                  - generic [ref=e101]: 卧室
+              - generic [ref=e102]:
+                - switch [ref=e103]
+                - generic [ref=e105]: 在线
+            - generic [ref=e106] [cursor=pointer]:
+              - generic [ref=e107]:
+                - generic [ref=e108]: 🔋
+                - generic [ref=e109]:
+                  - generic [ref=e110]: 厨房插座
+                  - generic [ref=e111]: 厨房
+              - generic [ref=e112]:
+                - switch [checked] [ref=e113]
+                - generic [ref=e115]: 在线
+            - generic [ref=e116] [cursor=pointer]:
+              - generic [ref=e117]:
+                - generic [ref=e118]: 🔒
+                - generic [ref=e119]:
+                  - generic [ref=e120]: 门锁
+                  - generic [ref=e121]: 门口
+              - generic [ref=e122]:
+                - switch [ref=e123]
+                - generic [ref=e125]: 离线
+    - tablist [ref=e127]:
+      - tab " 首页" [selected] [ref=e128] [cursor=pointer]:
+        - generic [ref=e130]: 
+        - generic [ref=e131]: 首页
+      - tab " 设备" [ref=e132] [cursor=pointer]:
+        - generic [ref=e134]: 
+        - generic [ref=e135]: 设备
+      - tab " 场景" [ref=e136] [cursor=pointer]:
+        - generic [ref=e138]: 
+        - generic [ref=e139]: 场景
+      - tab " 设置" [ref=e140] [cursor=pointer]:
+        - generic [ref=e142]: 
+        - generic [ref=e143]: 设置
+  - tablist [ref=e144]:
+    - tab " 首页" [ref=e145] [cursor=pointer]:
+      - generic [ref=e147]: 
+      - generic [ref=e148]: 首页
+    - tab " 设备" [ref=e149] [cursor=pointer]:
+      - generic [ref=e151]: 
+      - generic [ref=e152]: 设备
+    - tab " 场景" [ref=e153] [cursor=pointer]:
+      - generic [ref=e155]: 
+      - generic [ref=e156]: 场景
+    - tab " 设置" [ref=e157] [cursor=pointer]:
+      - generic [ref=e159]: 
+      - generic [ref=e160]: 设置

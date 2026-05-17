@@ -52,8 +52,11 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { useAuthStore } from '@/stores/auth'
+import { login } from '@/api/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const loading = ref(false)
 
 const form = reactive({
@@ -64,15 +67,26 @@ const form = reactive({
 async function handleLogin() {
   loading.value = true
   try {
-    // 模拟登录
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // 调用真实登录 API
+    const response = await login({
+      email: form.email,
+      password: form.password
+    })
     
-    localStorage.setItem('accessToken', 'mock-token')
-    localStorage.setItem('refreshToken', 'mock-refresh-token')
+    // 保存 token
+    localStorage.setItem('accessToken', response.accessToken)
+    if (response.refreshToken) {
+      localStorage.setItem('refreshToken', response.refreshToken)
+    }
     
+    // 更新 store
+    authStore.user = response.user
+    authStore.accessToken = response.accessToken
+    
+    showToast('登录成功')
     router.replace('/home')
-  } catch (error) {
-    showToast('登录失败')
+  } catch (error: any) {
+    showToast(error.message || '登录失败，请检查邮箱和密码')
   } finally {
     loading.value = false
   }

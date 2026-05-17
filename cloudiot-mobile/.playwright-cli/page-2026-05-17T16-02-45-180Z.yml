@@ -1,0 +1,20 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - heading "CloudIoT" [level=1] [ref=e7]
+    - paragraph [ref=e8]: 登录您的账户
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - generic [ref=e12]: 📧
+        - textbox "📧" [ref=e15]:
+          - /placeholder: 邮箱地址
+      - generic [ref=e16]:
+        - generic [ref=e17]: 🔒
+        - textbox "🔒" [ref=e20]:
+          - /placeholder: 密码
+    - button "登录" [ref=e22] [cursor=pointer]:
+      - generic [ref=e24]: 登录
+  - generic [ref=e25]:
+    - text: 还没有账户?
+    - link "立即注册" [ref=e26] [cursor=pointer]:
+      - /url: /register

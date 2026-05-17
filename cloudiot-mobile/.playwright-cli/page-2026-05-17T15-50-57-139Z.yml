@@ -1,0 +1,13 @@
+- tablist [ref=e3]:
+  - tab " 首页" [ref=e4] [cursor=pointer]:
+    - generic [ref=e6]: 
+    - generic [ref=e7]: 首页
+  - tab " 设备" [ref=e8] [cursor=pointer]:
+    - generic [ref=e10]: 
+    - generic [ref=e11]: 设备
+  - tab " 场景" [ref=e12] [cursor=pointer]:
+    - generic [ref=e14]: 
+    - generic [ref=e15]: 场景
+  - tab " 设置" [ref=e16] [cursor=pointer]:
+    - generic [ref=e18]: 
+    - generic [ref=e19]: 设置
