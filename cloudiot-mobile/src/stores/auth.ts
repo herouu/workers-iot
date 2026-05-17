@@ -4,8 +4,9 @@ import { login as apiLogin, logout as apiLogout, refreshToken, getCurrentUser } 
 
 interface User {
   id: string
-  username: string
+  name?: string | null
   email: string
+  avatar?: string | null
 }
 
 export const useAuthStore = defineStore('auth', () => {

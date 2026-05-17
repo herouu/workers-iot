@@ -80,7 +80,12 @@ async function handleLogin() {
     }
     
     // 更新 store
-    authStore.user = response.user
+    authStore.user = {
+      id: response.user.id,
+      name: response.user.name || response.user.email,
+      email: response.user.email,
+      avatar: response.user.avatar
+    }
     authStore.accessToken = response.accessToken
     
     showToast('登录成功')

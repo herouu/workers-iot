@@ -9,8 +9,7 @@
             <p class="greeting-text">{{ greeting }}</p>
           </div>
           <div class="user-avatar" @click="goToSettings">
-            <img v-if="user?.avatar" :src="user.avatar" alt="avatar" />
-            <span v-else class="avatar-text">{{ userInitials }}</span>
+            <span class="avatar-text">{{ userInitials }}</span>
           </div>
         </div>
         
@@ -177,7 +176,7 @@ const user = computed(() => authStore.user)
 
 const userInitials = computed(() => {
   const name = user.value?.name || user.value?.email || '用户'
-  return name.charAt(0).toUpperCase()
+  return name ? name.charAt(0).toUpperCase() : 'U'
 })
 
 // 模拟数据

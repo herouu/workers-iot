@@ -9,18 +9,12 @@ export interface User {
 
 export interface Device {
   id: string
-  user_id: string
   name: string
   type: string
-  model?: string
   location?: string
-  room?: string
-  icon: string
   online: boolean
   status?: 'on' | 'off'
   favorite?: boolean
-  state: DeviceState
-  created_at: number
 }
 
 export interface DeviceState {

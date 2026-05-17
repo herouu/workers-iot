@@ -102,7 +102,7 @@ const formatTime = (time: string | null) => {
   return new Date(time).toLocaleString('zh-CN')
 }
 
-const formatKey = (key: string) => {
+const formatKey = (key: string | number) => {
   const keyMap: Record<string, string> = {
     temperature: '温度',
     humidity: '湿度',
