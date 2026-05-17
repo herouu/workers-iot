@@ -10,7 +10,7 @@ buildscript {
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.7.2'
+        classpath 'com.android.tools.build:gradle:8.13.0'
         classpath 'com.google.gms:google-services:4.4.2'
     }
 }
@@ -19,12 +19,16 @@ apply from: "variables.gradle"
 
 allprojects {
     repositories {
+        google()
+        mavenCentral()
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/central' }
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+// Use layout.buildDirectory for Gradle 9.0+ compatibility
+def buildDir = layout.buildDirectory.dir("build").get().asFile
+tasks.register("clean", Delete) {
+    delete rootProject.layout.buildDirectory
 }
