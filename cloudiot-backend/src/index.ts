@@ -1,96 +1,519 @@
 /**
  * WorkersIoT - Cloudflare Workers 入口文件
+ * 使用 Hono 框架 + Swagger 文档
  */
-import { Router } from 'itty-router'
-import { authRouter } from './routes/auth'
-import { devicesRouter } from './routes/devices'
-import { scenesRouter } from './routes/scenes'
-import { dataRouter } from './routes/data'
-import { realtimeRouter } from './routes/realtime'
-import { withCors } from './middleware/cors'
-import { withAuth } from './middleware/auth'
-import { notFound, jsonError } from './utils/response'
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { swaggerUI } from '@hono/swagger-ui'
+
+// 导入路由
+import { authRoutes } from './routes/auth'
+import { devicesRoutes } from './routes/devices'
+import { scenesRoutes } from './routes/scenes'
+import { dataRoutes } from './routes/data'
+import { realtimeRoutes } from './routes/realtime'
+
+// 导入 Durable Objects
 import { DeviceSession } from './durableObjects/DeviceSession'
 import { SceneExecutor } from './durableObjects/SceneExecutor'
 import { NotificationHub } from './durableObjects/NotificationHub'
 import { RealtimeHub } from './durableObjects/RealtimeHub'
 
-// 创建路由器
-const router = Router()
-
-// 公共路由
-router.all('*', withCors)
-
-// 健康检查
-router.get('/health', () => {
-  return new Response(JSON.stringify({
-    status: 'ok',
-    service: 'WorkersIoT',
-    timestamp: Date.now()
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  })
-})
-
-// API 版本
-router.get('/api/v1', () => {
-  return new Response(JSON.stringify({
-    version: '1.0.0',
-    name: 'WorkersIoT API',
-    endpoints: {
-      auth: '/api/v1/auth',
-      devices: '/api/v1/devices',
-      scenes: '/api/v1/scenes',
-      data: '/api/v1/data'
-    }
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  })
-})
-
-// 认证路由 (公开)
-router.all('/api/v1/auth/*', authRouter)
-
-// 需要认证的路由
-router.all('/api/v1/devices/*', withAuth, devicesRouter)
-router.all('/api/v1/scenes/*', withAuth, scenesRouter)
-router.all('/api/v1/data/*', withAuth, dataRouter)
-
-// 实时通信路由 (WebSocket + Telemetry)
-router.all('/realtime/*', realtimeRouter)
-
-// 404 处理
-router.all('*', () => notFound())
-
-// 导出 Durable Objects (Wrangler 需要)
+// 导出 Durable Objects
 export { DeviceSession, SceneExecutor, NotificationHub, RealtimeHub }
 
-// 导出 worker
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    try {
-      return await router.handle(request, env, ctx)
-    } catch (err) {
-      console.error('Worker error:', err)
-      return jsonError('Internal server error', 500)
+// 创建 Hono 应用
+const app = new Hono()
+
+// 中间件
+app.use('*', cors())
+
+// 健康检查
+app.get('/health', (c) => c.json({
+  status: 'ok',
+  service: 'WorkersIoT',
+  timestamp: Date.now()
+}))
+
+// API 版本信息
+app.get('/api/v1', (c) => c.json({
+  version: '1.0.0',
+  name: 'WorkersIoT API',
+  endpoints: {
+    auth: '/api/v1/auth',
+    devices: '/api/v1/devices',
+    scenes: '/api/v1/scenes',
+    data: '/api/v1/data',
+    realtime: '/realtime'
+  },
+  docs: '/docs'
+}))
+
+// Swagger UI
+app.get('/docs', swaggerUI({ url: '/openapi.json' }))
+
+// 注册路由
+app.route('/api/v1/auth', authRoutes)
+app.route('/api/v1/devices', devicesRoutes)
+app.route('/api/v1/scenes', scenesRoutes)
+app.route('/api/v1/data', dataRoutes)
+app.route('/realtime', realtimeRoutes)
+
+// OpenAPI Schema
+const openApiSchema = {
+  openapi: '3.0.0',
+  info: {
+    title: 'WorkersIoT API',
+    version: '1.0.0',
+    description: 'Cloudflare Workers IoT 后端 API'
+  },
+  servers: [
+    { url: '/', description: 'Current server' }
+  ],
+  tags: [
+    { name: 'Auth', description: 'Authentication endpoints' },
+    { name: 'Devices', description: 'Device management' },
+    { name: 'Scenes', description: 'Scene automation' },
+    { name: 'Data', description: 'Data and statistics' },
+    { name: 'Realtime', description: 'Real-time communication' }
+  ],
+  paths: {
+    '/api/v1/auth/register': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Register new user',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email', example: 'user@example.com' },
+                  password: { type: 'string', minLength: 6, example: 'password123' },
+                  name: { type: 'string', example: 'John Doe' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': { description: 'User registered successfully' },
+          '400': { description: 'Invalid request' },
+          '409': { description: 'User already exists' }
+        }
+      }
+    },
+    '/api/v1/auth/login': {
+      post: {
+        tags: ['Auth'],
+        summary: 'User login',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Login successful' },
+          '401': { description: 'Invalid credentials' }
+        }
+      }
+    },
+    '/api/v1/auth/refresh': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Refresh access token',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['refreshToken'],
+                properties: {
+                  refreshToken: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Token refreshed' }
+        }
+      }
+    },
+    '/api/v1/auth/logout': {
+      post: {
+        tags: ['Auth'],
+        summary: 'User logout',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  refreshToken: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Logged out' }
+        }
+      }
+    },
+    '/api/v1/devices': {
+      get: {
+        tags: ['Devices'],
+        summary: 'List all devices',
+        parameters: [
+          { name: 'room', in: 'query', schema: { type: 'string' } },
+          { name: 'type', in: 'query', schema: { type: 'string' } },
+          { name: 'online', in: 'query', schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Device list' }
+        }
+      },
+      post: {
+        tags: ['Devices'],
+        summary: 'Create a new device',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'type'],
+                properties: {
+                  name: { type: 'string' },
+                  type: { type: 'string' },
+                  model: { type: 'string' },
+                  room: { type: 'string' },
+                  icon: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': { description: 'Device created' }
+        }
+      }
+    },
+    '/api/v1/devices/{id}': {
+      get: {
+        tags: ['Devices'],
+        summary: 'Get device details',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Device details' },
+          '404': { description: 'Device not found' }
+        }
+      },
+      put: {
+        tags: ['Devices'],
+        summary: 'Update device',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  room: { type: 'string' },
+                  icon: { type: 'string' },
+                  config: { type: 'object' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Device updated' }
+        }
+      },
+      delete: {
+        tags: ['Devices'],
+        summary: 'Delete device',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Device deleted' }
+        }
+      }
+    },
+    '/api/v1/devices/{id}/control': {
+      post: {
+        tags: ['Devices'],
+        summary: 'Control device',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['command'],
+                properties: {
+                  command: { type: 'string', example: 'power' },
+                  params: { type: 'object' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Command sent' }
+        }
+      }
+    },
+    '/api/v1/devices/{id}/data': {
+      get: {
+        tags: ['Devices'],
+        summary: 'Get device data history',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'limit', in: 'query', schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Device data history' }
+        }
+      }
+    },
+    '/api/v1/devices/provision': {
+      post: {
+        tags: ['Devices'],
+        summary: 'Provision a new device',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['mac_address'],
+                properties: {
+                  mac_address: { type: 'string' },
+                  name: { type: 'string' },
+                  type: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': { description: 'Device provisioned' }
+        }
+      }
+    },
+    '/api/v1/scenes': {
+      get: {
+        tags: ['Scenes'],
+        summary: 'List all scenes',
+        responses: {
+          '200': { description: 'Scene list' }
+        }
+      },
+      post: {
+        tags: ['Scenes'],
+        summary: 'Create a new scene',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'actions'],
+                properties: {
+                  name: { type: 'string' },
+                  icon: { type: 'string' },
+                  trigger_config: { type: 'object' },
+                  actions: { type: 'array', items: { type: 'object' } },
+                  enabled: { type: 'boolean' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': { description: 'Scene created' }
+        }
+      }
+    },
+    '/api/v1/scenes/{id}': {
+      get: {
+        tags: ['Scenes'],
+        summary: 'Get scene details',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Scene details' }
+        }
+      },
+      put: {
+        tags: ['Scenes'],
+        summary: 'Update scene',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  icon: { type: 'string' },
+                  enabled: { type: 'boolean' },
+                  trigger_config: { type: 'object' },
+                  actions: { type: 'array', items: { type: 'object' } }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Scene updated' }
+        }
+      },
+      delete: {
+        tags: ['Scenes'],
+        summary: 'Delete scene',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Scene deleted' }
+        }
+      }
+    },
+    '/api/v1/scenes/{id}/trigger': {
+      post: {
+        tags: ['Scenes'],
+        summary: 'Trigger/execute scene',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Scene executed' }
+        }
+      }
+    },
+    '/api/v1/data/devices/{id}': {
+      get: {
+        tags: ['Data'],
+        summary: 'Get device history',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'start', in: 'query', schema: { type: 'string' } },
+          { name: 'end', in: 'query', schema: { type: 'string' } },
+          { name: 'limit', in: 'query', schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Device history' }
+        }
+      }
+    },
+    '/api/v1/data/stats': {
+      get: {
+        tags: ['Data'],
+        summary: 'Get statistics',
+        parameters: [
+          { name: 'period', in: 'query', schema: { type: 'string' }, description: 'day, week, or month' }
+        ],
+        responses: {
+          '200': { description: 'Statistics data' }
+        }
+      }
+    },
+    '/realtime/telemetry': {
+      post: {
+        tags: ['Realtime'],
+        summary: 'Device telemetry data upload',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['device_id', 'data'],
+                properties: {
+                  device_id: { type: 'string' },
+                  data: { type: 'object' },
+                  timestamp: { type: 'number' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Telemetry received' }
+        }
+      }
+    },
+    '/realtime/commands/{deviceId}': {
+      get: {
+        tags: ['Realtime'],
+        summary: 'Get pending commands for device',
+        parameters: [
+          { name: 'deviceId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'since', in: 'query', schema: { type: 'string' } }
+        ],
+        responses: {
+          '200': { description: 'Pending commands' }
+        }
+      },
+      post: {
+        tags: ['Realtime'],
+        summary: 'Send command to device',
+        parameters: [
+          { name: 'deviceId', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['command'],
+                properties: {
+                  command: { type: 'string' },
+                  params: { type: 'object' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Command sent' }
+        }
+      }
     }
   }
 }
 
-// 类型声明
-interface Env {
-  DB: D1Database
-  CACHE: KVNamespace
-  STORAGE: R2Bucket
-  DEVICE_SESSION: DurableObjectNamespace
-  SCENE_EXECUTOR: DurableObjectNamespace
-  NOTIFICATION_HUB: DurableObjectNamespace
-  REALTIME_HUB: DurableObjectNamespace
-  JWT_SECRET: string
-  ENVIRONMENT: string
-}
+app.get('/openapi.json', (c) => c.json(openApiSchema))
 
-interface ExecutionContext {
-  waitUntil(promise: Promise<void>): void
-  passThroughOnException(): void
-}
+// 导出
+export default app

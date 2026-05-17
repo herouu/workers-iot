@@ -12,8 +12,12 @@
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
+    "@hono/swagger-ui": "^0.6.1",
+    "@hono/zod-openapi": "^1.4.0",
+    "hono": "^4.12.19",
     "itty-router": "^5.0.17",
-    "jose": "^5.9.6"
+    "jose": "^5.9.6",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

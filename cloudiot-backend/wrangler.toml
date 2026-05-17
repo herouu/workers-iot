@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "cloudiot-db"
-database_id = "your-database-id"
+database_id = "4523ac5f-0634-4f31-a276-55eb47c3e140"
 
 # KV 命名空间绑定
 [[kv_namespaces]]
@@ -19,7 +19,7 @@ id = "your-kv-id"
 binding = "STORAGE"
 bucket_name = "cloudiot-files"
 
-# Durable Objects 类
+# Durable Objects
 [[durable_objects.bindings]]
 name = "DEVICE_SESSION"
 class_name = "DeviceSession"
@@ -36,20 +36,11 @@ class_name = "NotificationHub"
 name = "REALTIME_HUB"
 class_name = "RealtimeHub"
 
+# Durable Objects 迁移
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = [ "DeviceSession", "SceneExecutor", "NotificationHub", "RealtimeHub" ]
+
 # 环境变量
 [vars]
 ENVIRONMENT = "production"
-
-# 开发环境覆盖
-[env.development]
-name = "cloudiot-backend-dev"
-compatibility_flags = ["nodejs_compat"]
-
-[[env.development.d1_databases]]
-binding = "DB"
-database_name = "cloudiot-db"
-database_id = "dev-database-id"
-
-[[env.development.kv_namespaces]]
-binding = "CACHE"
-id = "dev-cache-id"

@@ -1,7 +1,7 @@
 /**
  * 场景路由
  */
-import { Router } from 'itty-router'
+import { Hono } from 'hono'
 import {
   getScenes,
   getScene,
@@ -11,24 +11,19 @@ import {
   executeScene
 } from '../handlers/sceneHandler'
 
-const router = Router()
+type Env = {
+  DB: D1Database
+  JWT_SECRET: string
+  SCENE_EXECUTOR: DurableObjectNamespace
+}
 
-// GET /api/v1/scenes - 获取场景列表
-router.get('/', getScenes)
+const scenesRoutes = new Hono<{ Bindings: Env }>()
 
-// GET /api/v1/scenes/:id - 获取场景详情
-router.get('/:id', getScene)
+scenesRoutes.get('/', async (c) => getScenes(c.req.raw, c.env as Env))
+scenesRoutes.get('/:id', async (c) => getScene(c.req.raw, c.env as Env))
+scenesRoutes.post('/', async (c) => createScene(c.req.raw, c.env as Env))
+scenesRoutes.put('/:id', async (c) => updateScene(c.req.raw, c.env as Env))
+scenesRoutes.delete('/:id', async (c) => deleteScene(c.req.raw, c.env as Env))
+scenesRoutes.post('/:id/trigger', async (c) => executeScene(c.req.raw, c.env as Env))
 
-// POST /api/v1/scenes - 创建场景
-router.post('/', createScene)
-
-// PUT /api/v1/scenes/:id - 更新场景
-router.put('/:id', updateScene)
-
-// DELETE /api/v1/scenes/:id - 删除场景
-router.delete('/:id', deleteScene)
-
-// POST /api/v1/scenes/:id/execute - 执行场景
-router.post('/:id/execute', executeScene)
-
-export { router as scenesRouter }
+export { scenesRoutes }

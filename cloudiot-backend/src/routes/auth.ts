@@ -1,21 +1,20 @@
 /**
  * 认证路由
  */
-import { Router } from 'itty-router'
+import { Hono } from 'hono'
 import { handleRegister, handleLogin, handleRefresh, handleLogout } from '../handlers/authHandler'
 
-const router = Router()
+type Env = {
+  DB: D1Database
+  JWT_SECRET: string
+  CACHE: KVNamespace
+}
 
-// POST /api/v1/auth/register - 用户注册
-router.post('/register', handleRegister)
+const authRoutes = new Hono<{ Bindings: Env }>()
 
-// POST /api/v1/auth/login - 用户登录
-router.post('/login', handleLogin)
+authRoutes.post('/register', async (c) => handleRegister(c.req.raw, c.env as Env))
+authRoutes.post('/login', async (c) => handleLogin(c.req.raw, c.env as Env))
+authRoutes.post('/refresh', async (c) => handleRefresh(c.req.raw, c.env as Env))
+authRoutes.post('/logout', async (c) => handleLogout(c.req.raw, c.env as Env))
 
-// POST /api/v1/auth/refresh - 刷新令牌
-router.post('/refresh', handleRefresh)
-
-// POST /api/v1/auth/logout - 用户登出
-router.post('/logout', handleLogout)
-
-export { router as authRouter }
+export { authRoutes }

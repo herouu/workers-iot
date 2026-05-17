@@ -1,96 +1,44 @@
 /**
  * 实时通信路由
- * 处理 WebSocket 连接和设备数据上报
  */
-import { Router } from 'itty-router'
-import { verifyToken } from '../utils/jwt'
+import { Hono } from 'hono'
 
-const router = Router()
+type Env = {
+  DB: D1Database
+  REALTIME_HUB: DurableObjectNamespace
+}
 
-// WebSocket 连接升级
-router.get('/ws', async (request: Request, env: Env): Promise<Response> => {
-  const url = new URL(request.url)
-  const token = url.searchParams.get('token')
-  
-  // 验证 token
-  if (!token) {
-    // 尝试从 cookie 获取
-    const cookies = request.headers.get('Cookie') || ''
-    const match = cookies.match(/auth_token=([^;]+)/)
-    if (match) {
-      const payload = await verifyToken(match[1], env.JWT_SECRET)
-      if (!payload) {
-        return new Response('Unauthorized', { status: 401 })
-      }
-    } else {
-      return new Response('Unauthorized', { status: 401 })
-    }
-  } else {
-    const payload = await verifyToken(token, env.JWT_SECRET)
-    if (!payload) {
-      return new Response('Unauthorized', { status: 401 })
-    }
-  }
-  
-  // 获取 Durable Object
-  const doId = env.REALTIME_HUB.idFromName('main-hub')
-  const doStub = env.REALTIME_HUB.get(doId)
-  
-  // 转发到 Durable Object
-  return doStub.fetch(request)
+const realtimeRoutes = new Hono<{ Bindings: Env }>()
+
+// WebSocket 连接
+realtimeRoutes.get('/ws', async (c) => {
+  const doId = c.env.REALTIME_HUB.idFromName('main-hub')
+  const doStub = c.env.REALTIME_HUB.get(doId)
+  return doStub.fetch(c.req.raw)
 })
 
-// 设备数据上报 (HTTP POST)
-router.post('/telemetry', async (request: Request, env: Env): Promise<Response> => {
+// 设备数据上报
+realtimeRoutes.post('/telemetry', async (c) => {
   try {
-    const body = await request.json()
+    const body = await c.req.json()
     const { device_id, data, timestamp } = body
     
     if (!device_id || !data) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'device_id and data are required'
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
+      return c.json({ success: false, error: 'device_id and data are required' }, 400)
     }
     
-    // 验证设备 (简化版: 通过 device_id 验证)
-    const authHeader = request.headers.get('Authorization')
-    const authToken = authHeader?.replace('Bearer ', '')
-    
-    if (authToken) {
-      const payload = await verifyToken(authToken, env.JWT_SECRET)
-      if (!payload) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Unauthorized'
-        }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
-    }
-    
-    // 存储数据到 D1
-    await env.DB
-      .prepare(`
-        INSERT INTO device_states (device_id, state, timestamp)
-        VALUES (?, ?, ?)
-      `)
+    await c.env.DB
+      .prepare(`INSERT INTO device_states (device_id, state, timestamp) VALUES (?, ?, ?)`)
       .bind(device_id, JSON.stringify(data), timestamp || Date.now())
       .run()
     
-    // 更新设备在线状态
-    await env.DB
+    await c.env.DB
       .prepare('UPDATE devices SET online = 1, updated_at = ? WHERE id = ?')
       .bind(Date.now(), device_id)
       .run()
     
-    // 通知实时 Hub
-    const doId = env.REALTIME_HUB.idFromName('main-hub')
-    const doStub = env.REALTIME_HUB.get(doId)
+    const doId = c.env.REALTIME_HUB.idFromName('main-hub')
+    const doStub = c.env.REALTIME_HUB.get(doId)
     await doStub.fetch(new Request('http://internal/broadcast', {
       method: 'POST',
       body: JSON.stringify({
@@ -100,101 +48,59 @@ router.post('/telemetry', async (request: Request, env: Env): Promise<Response> 
       })
     }))
     
-    return new Response(JSON.stringify({
-      success: true,
-      timestamp: Date.now()
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    })
-    
+    return c.json({ success: true, timestamp: Date.now() })
   } catch (err) {
     console.error('Telemetry error:', err)
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Internal server error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return c.json({ success: false, error: 'Internal server error' }, 500)
   }
 })
 
-// 设备获取待处理命令 (HTTP GET - 轮询方式)
-router.get('/commands/:deviceId', async (request: Request, env: Env): Promise<Response> => {
+// 获取待处理命令
+realtimeRoutes.get('/commands/:deviceId', async (c) => {
   try {
-    const url = new URL(request.url)
-    const deviceId = url.pathname.split('/').pop()
-    const since = parseInt(url.searchParams.get('since') || '0')
+    const deviceId = c.req.param('deviceId')
+    const since = parseInt(c.req.query('since') || '0')
     
-    // 获取该设备的新命令
-    const result = await env.DB
-      .prepare(`
-        SELECT * FROM device_commands 
-        WHERE device_id = ? AND timestamp > ? AND status = 'pending'
-        ORDER BY timestamp ASC
-      `)
+    const result = await c.env.DB
+      .prepare(`SELECT * FROM device_commands WHERE device_id = ? AND timestamp > ? AND status = 'pending' ORDER BY timestamp ASC`)
       .bind(deviceId, since)
       .all()
     
-    // 更新命令状态为已发送
     for (const cmd of result.results) {
-      await env.DB
+      await c.env.DB
         .prepare('UPDATE device_commands SET status = ? WHERE id = ?')
         .bind('sent', (cmd as any).id)
         .run()
     }
     
-    return new Response(JSON.stringify({
-      commands: result.results,
-      serverTime: Date.now()
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    })
-    
+    return c.json({ commands: result.results, serverTime: Date.now() })
   } catch (err) {
     console.error('Get commands error:', err)
-    return new Response(JSON.stringify({
-      error: 'Internal server error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return c.json({ error: 'Internal server error' }, 500)
   }
 })
 
-// App 下发命令
-router.post('/commands/:deviceId', async (request: Request, env: Env): Promise<Response> => {
+// 下发命令
+realtimeRoutes.post('/commands/:deviceId', async (c) => {
   try {
-    const url = new URL(request.url)
-    const deviceId = url.pathname.split('/').pop()
-    const body = await request.json()
+    const deviceId = c.req.param('deviceId')
+    const body = await c.req.json()
     const { command, params } = body
     
     if (!command) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'command is required'
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
+      return c.json({ success: false, error: 'command is required' }, 400)
     }
     
-    // 创建命令记录
     const commandId = crypto.randomUUID()
     const timestamp = Date.now()
     
-    await env.DB
-      .prepare(`
-        INSERT INTO device_commands (id, device_id, command, params, timestamp, status)
-        VALUES (?, ?, ?, ?, ?, 'pending')
-      `)
+    await c.env.DB
+      .prepare(`INSERT INTO device_commands (id, device_id, command, params, timestamp, status) VALUES (?, ?, ?, ?, ?, 'pending')`)
       .bind(commandId, deviceId, command, JSON.stringify(params || {}), timestamp)
       .run()
     
-    // 通知实时 Hub
-    const doId = env.REALTIME_HUB.idFromName('main-hub')
-    const doStub = env.REALTIME_HUB.get(doId)
+    const doId = c.env.REALTIME_HUB.idFromName('main-hub')
+    const doStub = c.env.REALTIME_HUB.get(doId)
     await doStub.fetch(new Request('http://internal/broadcast', {
       method: 'POST',
       body: JSON.stringify({
@@ -204,31 +110,11 @@ router.post('/commands/:deviceId', async (request: Request, env: Env): Promise<R
       })
     }))
     
-    return new Response(JSON.stringify({
-      success: true,
-      commandId,
-      timestamp
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    })
-    
+    return c.json({ success: true, commandId, timestamp })
   } catch (err) {
     console.error('Send command error:', err)
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Internal server error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return c.json({ success: false, error: 'Internal server error' }, 500)
   }
 })
 
-export { router as realtimeRouter }
-
-// 类型声明
-interface Env {
-  DB: D1Database
-  REALTIME_HUB: DurableObjectNamespace
-  JWT_SECRET: string
-}
+export { realtimeRoutes }

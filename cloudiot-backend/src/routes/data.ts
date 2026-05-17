@@ -1,15 +1,16 @@
 /**
  * 数据路由
  */
-import { Router } from 'itty-router'
+import { Hono } from 'hono'
 import { getDeviceHistory, getStatistics } from '../handlers/dataHandler'
 
-const router = Router()
+type Env = {
+  DB: D1Database
+}
 
-// GET /api/v1/data/devices/:id/history - 获取设备历史数据
-router.get('/devices/:id/history', getDeviceHistory)
+const dataRoutes = new Hono<{ Bindings: Env }>()
 
-// GET /api/v1/data/statistics - 获取统计数据
-router.get('/statistics', getStatistics)
+dataRoutes.get('/devices/:id', async (c) => getDeviceHistory(c.req.raw, c.env as Env))
+dataRoutes.get('/stats', async (c) => getStatistics(c.req.raw, c.env as Env))
 
-export { router as dataRouter }
+export { dataRoutes }
