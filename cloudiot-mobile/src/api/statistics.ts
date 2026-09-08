@@ -1,4 +1,5 @@
-import { request } from './request'
+// 统计 API - 统一 Cloud / Local 调用
+import { apiRequest } from './adapter'
 
 export interface StatisticsData {
   period: string
@@ -16,6 +17,6 @@ export interface StatisticsData {
   }
 }
 
-export const getStatistics = (period: 'day' | 'week' | 'month' = 'day') => {
-  return request<StatisticsData>('/api/v1/data/stats', { params: { period } })
+export const getStatistics = (period: 'day' | 'week' | 'month' = 'day'): Promise<StatisticsData> => {
+  return apiRequest<StatisticsData>('/api/v1/data/stats', { params: { period } })
 }

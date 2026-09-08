@@ -1,4 +1,5 @@
-import { request } from './request'
+// 场景 API - 统一 Cloud / Local 调用
+import { apiRequest } from './adapter'
 
 export interface Scene {
   id: string
@@ -11,6 +12,8 @@ export interface Scene {
   actions?: SceneAction[]
   createdAt?: string
   updatedAt?: string
+  condition?: any
+  action?: any
 }
 
 export interface SceneCondition {
@@ -25,36 +28,36 @@ export interface SceneAction {
   delay?: number
 }
 
-export const getScenes = () => {
-  return request<Scene[]>('/api/v1/scenes')
+export const getScenes = (): Promise<Scene[]> => {
+  return apiRequest<Scene[]>('/api/v1/scenes')
 }
 
-export const getScene = (id: string) => {
-  return request<Scene>(`/api/v1/scenes/${id}`)
+export const getScene = (id: string): Promise<Scene> => {
+  return apiRequest<Scene>(`/api/v1/scenes/${id}`)
 }
 
-export const createScene = (data: Partial<Scene>) => {
-  return request<Scene>('/api/v1/scenes', {
+export const createScene = (data: Partial<Scene>): Promise<Scene> => {
+  return apiRequest<Scene>('/api/v1/scenes', {
     method: 'POST',
-    body: data
+    body: data,
   })
 }
 
-export const updateScene = (id: string, data: Partial<Scene>) => {
-  return request<Scene>(`/api/v1/scenes/${id}`, {
+export const updateScene = (id: string, data: Partial<Scene>): Promise<Scene> => {
+  return apiRequest<Scene>(`/api/v1/scenes/${id}`, {
     method: 'PUT',
-    body: data
+    body: data,
   })
 }
 
-export const deleteScene = (id: string) => {
-  return request(`/api/v1/scenes/${id}`, {
-    method: 'DELETE'
+export const deleteScene = (id: string): Promise<any> => {
+  return apiRequest(`/api/v1/scenes/${id}`, {
+    method: 'DELETE',
   })
 }
 
-export const triggerScene = (id: string) => {
-  return request(`/api/v1/scenes/${id}/trigger`, {
-    method: 'POST'
+export const triggerScene = (id: string): Promise<any> => {
+  return apiRequest(`/api/v1/scenes/${id}/trigger`, {
+    method: 'POST',
   })
 }

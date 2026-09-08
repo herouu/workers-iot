@@ -17,6 +17,16 @@
     <div class="px-5 py-4 space-y-4">
       <div class="text-text-muted text-xs uppercase tracking-wider">通用设置</div>
       <div class="bg-surface-card rounded-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-surface-elevated/50 transition-colors" @click="$router.push('/settings/connection')">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+              <Wifi :size="18" />
+            </div>
+            <span class="text-text-primary">连接设置</span>
+          </div>
+          <span class="text-text-muted">›</span>
+        </div>
+        <div class="h-px bg-surface-elevated/50 mx-4"></div>
         <div class="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-surface-elevated/50 transition-colors" @click="$router.push('/settings/profile')">
           <div class="flex items-center gap-3">
             <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
@@ -64,7 +74,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { User, RefreshCw, Info, ArrowLeft } from 'lucide-vue-next'
+import { User, RefreshCw, Info, ArrowLeft, Wifi } from 'lucide-vue-next'
 
 const router = useRouter()
 

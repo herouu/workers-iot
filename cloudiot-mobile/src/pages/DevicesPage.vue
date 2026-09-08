@@ -134,21 +134,51 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { Device } from '@/types'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import type { Device } from '@/api/device'
+import { getDevices } from '@/api/device'
+import { useConnectionStore } from '@/stores/connection'
 import Switch from '@/components/ui/switch/Switch.vue'
 
-const activeFilter = ref('all')
+const router = useRouter()
+const conn = useConnectionStore()
 
-// 模拟数据
-const devices = ref<Device[]>([
-  { id: '1', name: '客厅灯', type: 'light', location: '客厅', online: true, status: 'on', favorite: true },
-  { id: '2', name: '卧室空调', type: 'ac', location: '卧室', online: true, status: 'off', favorite: true },
-  { id: '3', name: '厨房插座', type: 'outlet', location: '厨房', online: true, status: 'on', favorite: false },
-  { id: '4', name: '门口门锁', type: 'lock', location: '门口', online: false, status: 'off', favorite: false },
-  { id: '5', name: '客厅窗帘', type: 'curtain', location: '客厅', online: true, status: 'off', favorite: false },
-  { id: '6', name: '书房风扇', type: 'fan', location: '书房', online: false, status: 'off', favorite: false },
-])
+const activeFilter = ref('all')
+const loading = ref(false)
+const devices = ref<Device[]>([])
+
+// 从 API 加载设备列表
+async function fetchDevices() {
+  loading.value = true
+  try {
+    const list = await getDevices()
+    devices.value = list.map((d: any) => ({
+      id: d.id,
+      name: d.name || d.id,
+      type: d.type || 'unknown',
+      location: d.location || '',
+      online: d.online === 1 || d.status === 'online',
+      status: d.online === 1 || d.status === 'online' ? 'on' : 'off',
+      favorite: false,
+      data: d.data || parseConfig(d.config),
+    }))
+  } catch (err: any) {
+    console.error('加载设备失败:', err)
+    devices.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+function parseConfig(config: string | null): Record<string, any> | undefined {
+  if (!config) return undefined
+  try { return JSON.parse(config) } catch { return undefined }
+}
+
+onMounted(() => {
+  fetchDevices()
+})
 
 const userName = computed(() => {
   const name = localStorage.getItem('userName')

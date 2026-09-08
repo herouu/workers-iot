@@ -56,6 +56,11 @@ const routes = [
     component: () => import('@/pages/SettingsPage.vue')
   },
   {
+    path: '/settings/connection',
+    name: 'ConnectionSettings',
+    component: () => import('@/pages/ConnectionSettingsPage.vue')
+  },
+  {
     path: '/settings/profile',
     name: 'Profile',
     component: () => import('@/pages/ProfilePage.vue')

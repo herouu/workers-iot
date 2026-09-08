@@ -4,9 +4,14 @@
     <header class="sticky top-0 bg-surface/95 backdrop-blur border-b border-surface-elevated/50 px-5 py-4 flex items-center justify-between">
       <button @click="router.back()" class="text-text-primary text-2xl">‹</button>
       <span class="text-text-primary font-semibold">设备详情</span>
-      <span :class="device.status === 'online' ? 'text-brand' : 'text-text-muted'" class="text-sm">
-        {{ device.status === 'online' ? '在线' : '离线' }}
-      </span>
+      <div class="flex items-center gap-2">
+        <span :class="conn.isLocal ? 'text-brand' : 'text-text-muted'" class="text-xs font-mono" :title="conn.apiBaseUrl">
+          {{ conn.isLocal ? '📡本地' : '☁️云' }}
+        </span>
+        <span :class="device.status === 'online' ? 'text-brand' : 'text-text-muted'" class="text-sm">
+          {{ device.status === 'online' ? '在线' : '离线' }}
+        </span>
+      </div>
     </header>
 
     <!-- 加载状态 -->
@@ -108,9 +113,11 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDevice, getDeviceHistory, controlDevice } from '@/api/device'
+import { useConnectionStore } from '@/stores/connection'
 
 const route = useRoute()
 const router = useRouter()
+const conn = useConnectionStore()
 
 const deviceId = ref(route.params.id as string)
 const device = ref<any>({
