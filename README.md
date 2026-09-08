@@ -16,7 +16,7 @@ WorkersIoT 是一款基于 Cloudflare Workers、D1、Durable Objects 等边缘�
 
 - **Edge Computing Backend / 边缘计算后端** - Cloudflare Workers provides global low-latency API services / Cloudflare Workers 提供全球低延迟 API 服务
 - **Local Gateway / 本地网关** - Old Android phone + Termux runs local gateway, works offline / 旧手机 + Termux 运行本地网关，断网可用
-- **Dual-mode Mobile App / 双模式移动端** - Auto-switch between cloud and local gateway / 云端/本地网关自动切换
+- **Tri-channel Mobile App / 三通道移动端** - Auto-fallback Cloud → Local Gateway → Direct BLE (P3 planned) / 云端 → 本地网关 → 近场直连自动降级（P3 规划中）
 - **Real-time State Sync / 实时状态同步** - Durable Objects enables real-time device state push / Durable Objects 实现设备状态实时推送
 - **Cross-platform Clients / 跨平台客户端** - Capacitor mobile (Android/iOS) / Capacitor 移动端 (Android/iOS)
 - **MQTT Protocol Support / MQTT 协议支持** - Standard IoT device access protocol / 标准物联网设备接入协议
@@ -24,40 +24,64 @@ WorkersIoT 是一款基于 Cloudflare Workers、D1、Durable Objects 等边缘�
 
 ## Technical Architecture / 技术架构
 
+> 三级容灾控制架构：云端在线走云，云端挂了走本地网关，网关全挂走近场直连。
+> Three-tier resilient control: Cloud → Local Gateway → Direct (BLE) fallback.
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Client Layer / 客户端层                    │
-├─────────────────────────────────────────────────────────────────┤
-│              Capacitor Mobile (Vue 3 + Android/iOS)             │
-│              ┌─────────────────────────────────┐                │
-│              │  Dual-mode: Cloud ↔ Local Gateway │               │
-│              └─────────────────────────────────┘                │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-              ┌────────────────┴────────────────┐
-              ▼                                 ▼
-┌─────────────────────────┐     ┌─────────────────────────────────┐
-│     Cloudflare Edge      │     │       Local Gateway / 本地网关    │
-├─────────────────────────┤     ├─────────────────────────────────┤
-│  Workers (API)          │     │  Old Phone + Termux             │
-│  Durable Objects        │     │  ┌─────────┐ ┌───────────────┐  │
-│  KV / D1 / R2           │     │  │  HTTP   │ │  MQTT Broker  │  │
-│                         │     │  │  :8080  │ │  (aedes) :1883│  │
-│  Remote access, OTA,    │     │  └─────────┘ └───────────────┘  │
-│  multi-home mgmt        │     │  ┌─────────┐ ┌───────────────┐  │
-│                         │     │  │ Rules   │ │  Cloud Sync   │  │
-│                         │     │  │ Engine  │ │  (optional)   │  │
-│                         │     │  └─────────┘ └───────────────┘  │
-└─────────────────────────┘     └─────────────────────────────────┘
-              │                                 │
-              └────────────────┬────────────────┘
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        Device Layer / 设备层                      │
-├─────────────────────────────────────────────────────────────────┤
-│   WiFi Devices │ BLE Devices │ ZigBee Devices │ Others          │
-│   WiFi 设备    │ BLE 设备    │ ZigBee 设备    │ 其他设备          │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      CLIENT LAYER · Capacitor App                           │
+│                                                                             │
+│  Control Bus: P1 Cloud  |  P2 Local Gateway  |  P3 Direct BLE (planned)     │
+│  api/adapter.ts path translation · auto-fallback P1 -> P2 -> P3             │
+└─────────────────────────────────────────────────────────────────────────────┘
+          P1 internet/JWT              P2 LAN / no-auth             P3 BLE direct
+               |                              |                          |
+               v                              v                          v
+       ┌──────────────────────┐   ┌────────────────────────┐   ┌────────────┐
+       │  CLOUDFLARE EDGE     │   │  LOCAL GATEWAY         │   │  DIRECT    │
+       │  (remote gateway)    │   │  Termux local gateway  │   │  BLE       │
+       │                      │   │                        │   │            │
+       │  Workers REST API    │   │  Hono HTTP :8080       │   │  App <->   │
+       │  DO RealtimeHub/     │   │  aedes MQTT :1883      │   │  ESP32     │
+       │    DeviceSession     │   │  SQLite · rule engine  │   │  GATT ctrl │
+       │  D1 cmd queue/shadows│   │  mDNS · Cloud Sync     │   └────────────┘
+       │  KV / R2 · scenes    │   └──────────────┬─────────┘
+       └────────────┬─────────┘                  │
+                    │ (B) direct cloud link      │ (A) local MQTT link
+                    │  HTTPS telemetry+cmd poll  │  devices/{id}/topics
+                    v                           v
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DEVICE LAYER · ESP32                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  CH1 MQTT  -> local aedes     CH2 HTTPS -> Cloudflare Worker                │
+│     implemented                  planned (esp32-onboarding scheme)          │
+│  CH3 BLE GATT server (NimBLE, planned) : near-field fallback, pairing       │
+│  unified command state machine · seq re-sync · backoff reconnect            │
+│  NVS offline cache & backfill · local rule fallback                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 三级控制链路 / Three-tier Control Paths
+
+| Tier | 路径 Path | 触发条件 When | 链路 Link | 鉴权 Auth | 现状 State |
+|------|-----------|---------------|-----------|-----------|------------|
+| P1 云端 | App → Cloudflare Worker → ESP32 | 手机在外网，云端在线 | REST/WS → D1 命令队列 → ESP32 轮询 `/realtime/commands/:id`；遥测反向经 `/realtime/telemetry` → DO → App WS 推送 | 用户 JWT + device_secret | ✅ 已实现（移动端 + 后端） |
+| P2 本地 | App → Local Gateway → ESP32 | 云端不可达，手机与设备同局域网 | HTTP `:8080/api/devices/:id/command` → 命令分发 → MQTT `devices/{id}/command` | 局域网可信 + device_id + secret | ✅ 已实现（网关 + 移动端） |
+| P3 直连 | App --BLE--> ESP32 | 云端 + 本地网关均不可达（近场兜底） | BLE GATT 控制/状态特征 | 配对 + Bonding 加密 | 🚧 规划中 |
+
+### 降级决策 / Fallback Decision
+
+```
+检测顺序（手机侧 / App 启动与断线时）：
+  ① 云端 API 可达        → P1 云端（人在外网）
+  ② ①不可达 && 本地网关 /health 可达 → P2 本地（同一局域网, <10ms）
+  ③ ①②不可达 && BLE 扫描到已绑定设备  → P3 直连（近场）
+
+设备侧（ESP32）：
+  - 通道①② 常驻并发，互不依赖：本地网关挂仍有云端通道，反之亦然
+  - 通道①② 均断线时 BLE 广播常驻，等待 App 近场接入
+  - 所有通道只写同一套命令状态机；通道间状态变更全量广播
+  - 断线期间事件带 seq 落 NVS，重连后补报对账
 ```
 
 ## Project Structure / 项目结构
@@ -208,14 +232,15 @@ npx cap open android
 cd android && ./gradlew assembleDebug
 ```
 
-#### 双模式连接 / Dual-mode Connection
+#### 三通道连接 / Tri-channel Connection
 
-移动端支持 **云端** 和 **本地网关** 两种模式：
+移动端支持 **云端 → 本地网关 → 近场直连** 三级自动降级：
 
-- **云端模式**：连接 Cloudflare Worker，需登录，支持远程访问
-- **本地模式**：直连局域网网关，无需登录，延迟 <10ms，断网可用
+- **P1 云端模式**：连接 Cloudflare Worker，需登录，支持远程访问
+- **P2 本地模式**：直连局域网网关，无需登录，延迟 <10ms，断网可用
+- **P3 直连模式**（规划中）：云端与本地网关均不可达时，App 通过 BLE 直连 ESP32，近场兜底控制
 
-切换路径：`设置 → 连接设置 → 选择模式`
+切换路径：`设置 → 连接设置 → 选择模式`（P2 自动检测本地网关 `/health`）
 
 ## API Endpoints / API 接口
 
@@ -417,12 +442,13 @@ void loop() {
 
 ## Connection Modes / 连接模式
 
-| Mode | Backend | Auth | Latency | Offline |
-|------|---------|------|---------|---------|
-| Cloud | Cloudflare Worker | JWT | 100ms~2s | ❌ |
-| Local | LAN Gateway | None | <10ms | ✅ |
+| Mode | Backend | Auth | Latency | Cloud Down | Gateway Down | Both Down |
+|------|---------|------|---------|------------|--------------|-----------|
+| P1 Cloud | Cloudflare Worker | JWT | 100ms~2s | — | ✅（设备直连云） | ❌ |
+| P2 Local | LAN Gateway | None | <10ms | ✅ | — | ❌ |
+| P3 Direct | ESP32 (BLE, 规划中) | Pairing/Bonding | <5ms | ✅ | ✅ | ✅（近场） |
 
-Mobile app auto-detects local gateway and can switch manually via Settings → Connection.
+Mobile app auto-detects local gateway and can switch manually via Settings → Connection. P3 requires the phone within BLE range of the device.
 
 ## License / 许可证
 
