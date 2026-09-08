@@ -1,0 +1,28 @@
+{
+  "name": "cloudiot-local-gateway",
+  "version": "1.0.0",
+  "description": "IoT 本地网关 - Termux + Hono + aedes",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop gateway",
+    "pm2:restart": "pm2 restart gateway",
+    "pm2:logs": "pm2 logs gateway",
+    "pm2:save": "pm2 save"
+  },
+  "dependencies": {
+    "aedes": "^0.51.3",
+    "better-sqlite3": "^11.8.1",
+    "bonjour": "^3.5.0",
+    "hono": "^4.6.20"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/bonjour": "^3.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
