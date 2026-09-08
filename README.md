@@ -15,6 +15,8 @@ WorkersIoT 是一款基于 Cloudflare Workers、D1、Durable Objects 等边缘�
 ### Core Features / 核心特性
 
 - **Edge Computing Backend / 边缘计算后端** - Cloudflare Workers provides global low-latency API services / Cloudflare Workers 提供全球低延迟 API 服务
+- **Local Gateway / 本地网关** - Old Android phone + Termux runs local gateway, works offline / 旧手机 + Termux 运行本地网关，断网可用
+- **Dual-mode Mobile App / 双模式移动端** - Auto-switch between cloud and local gateway / 云端/本地网关自动切换
 - **Real-time State Sync / 实时状态同步** - Durable Objects enables real-time device state push / Durable Objects 实现设备状态实时推送
 - **Cross-platform Clients / 跨平台客户端** - Capacitor mobile (Android/iOS) / Capacitor 移动端 (Android/iOS)
 - **MQTT Protocol Support / MQTT 协议支持** - Standard IoT device access protocol / 标准物联网设备接入协议
@@ -23,33 +25,39 @@ WorkersIoT 是一款基于 Cloudflare Workers、D1、Durable Objects 等边缘�
 ## Technical Architecture / 技术架构
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      Client Layer / 客户端层              │
-├─────────────────────────────────────────────────────────┤
-│            Capacitor Mobile (Vue 3 + Android)           │
-└─────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────┐
-│                    Cloudflare Edge                       │
-├─────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌─────────────┐  ┌────────────────┐  │
-│  │   Workers    │  │ Durable Objs │  │    KV Store    │  │
-│  │    (API)     │  │  (Real-time) │  │    (Cache)     │  │
-│  └──────────────┘  └─────────────┘  └────────────────┘  │
-│  ┌──────────────┐  ┌─────────────┐  ┌────────────────┐  │
-│  │      D1      │  │     R2      │  │    Cloudflare  │  │
-│  │  (Database)  │  │   (Storage) │  │     Pages      │  │
-│  └──────────────┘  └─────────────┘  └────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────┐
-│                       Device Layer / 设备层               │
-├─────────────────────────────────────────────────────────┤
-│   WiFi Devices │ BLE Devices │ ZigBee Devices │ Others  │
-│   WiFi 设备    │ BLE 设备    │ ZigBee 设备    │ 其他设备  │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        Client Layer / 客户端层                    │
+├─────────────────────────────────────────────────────────────────┤
+│              Capacitor Mobile (Vue 3 + Android/iOS)             │
+│              ┌─────────────────────────────────┐                │
+│              │  Dual-mode: Cloud ↔ Local Gateway │               │
+│              └─────────────────────────────────┘                │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+              ┌────────────────┴────────────────┐
+              ▼                                 ▼
+┌─────────────────────────┐     ┌─────────────────────────────────┐
+│     Cloudflare Edge      │     │       Local Gateway / 本地网关    │
+├─────────────────────────┤     ├─────────────────────────────────┤
+│  Workers (API)          │     │  Old Phone + Termux             │
+│  Durable Objects        │     │  ┌─────────┐ ┌───────────────┐  │
+│  KV / D1 / R2           │     │  │  HTTP   │ │  MQTT Broker  │  │
+│                         │     │  │  :8080  │ │  (aedes) :1883│  │
+│  Remote access, OTA,    │     │  └─────────┘ └───────────────┘  │
+│  multi-home mgmt        │     │  ┌─────────┐ ┌───────────────┐  │
+│                         │     │  │ Rules   │ │  Cloud Sync   │  │
+│                         │     │  │ Engine  │ │  (optional)   │  │
+│                         │     │  └─────────┘ └───────────────┘  │
+└─────────────────────────┘     └─────────────────────────────────┘
+              │                                 │
+              └────────────────┬────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        Device Layer / 设备层                      │
+├─────────────────────────────────────────────────────────────────┤
+│   WiFi Devices │ BLE Devices │ ZigBee Devices │ Others          │
+│   WiFi 设备    │ BLE 设备    │ ZigBee 设备    │ 其他设备          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Project Structure / 项目结构
@@ -72,16 +80,38 @@ workers-iot/
 │
 ├── cloudiot-mobile/           # Capacitor Mobile App / 移动端
 │   ├── src/
+│   │   ├── api/               # API layer (cloud + local adapter)
 │   │   ├── components/        # Vue components / Vue 组件
-│   │   ├── composables/       # Composables / 组合式函数
 │   │   ├── pages/             # Page components / 页面组件
 │   │   ├── router/            # Router configuration / 路由配置
 │   │   ├── stores/            # State management / 状态管理
-│   │   └── services/          # Service layer / 服务封装
+│   │   │   └── connection.ts  # Cloud/Local mode management
+│   │   └── ...
 │   ├── android/               # Android native project / Android 项目
-│   ├── ios/                   # iOS native project (reserved) / iOS 项目 (预留)
 │   ├── capacitor.config.ts
 │   └── package.json
+│
+├── cloudiot-local-gateway/    # Local Gateway / 本地网关 (Termux)
+│   ├── src/
+│   │   ├── index.ts           # Entry: start HTTP + MQTT + Sync
+│   │   ├── config.ts          # Environment configuration
+│   │   ├── server/
+│   │   │   ├── http.ts        # Hono HTTP Server
+│   │   │   └── mqtt.ts        # aedes MQTT Broker
+│   │   ├── db/
+│   │   │   ├── index.ts       # SQLite schema + connection
+│   │   │   └── cleanup.ts     # Data retention cleanup
+│   │   ├── routes/            # REST API routes
+│   │   ├── services/          # Rule engine, command dispatcher, cloud sync, mDNS
+│   │   └── models/            # Device, telemetry, command, rule models
+│   ├── ecosystem.config.cjs   # PM2 process management
+│   ├── .termux/boot.sh       # Boot auto-start script
+│   └── package.json
+│
+└── doc/                       # Documentation / 文档
+    ├── offline-resilience.md  # Offline architecture design
+    ├── device-onboarding.md   # Device onboarding guide
+    └── esp32-onboarding.md    # ESP32 firmware examples
 ```
 
 ## Quick Start / 快速开始
@@ -108,6 +138,55 @@ wrangler dev
 wrangler deploy
 ```
 
+### Local Gateway Deployment / 本地网关部署
+
+```bash
+# 环境：旧 Android 手机 + Termux (F-Droid 版)
+# 手机与设备需在同一 WiFi 局域网
+
+# 1. Termux 安装依赖
+pkg update
+pkg install nodejs git
+
+# 2. 克隆项目
+git clone https://github.com/herouu/workers-iot.git
+cd workers-iot/cloudiot-local-gateway
+
+# 3. 安装 Node 依赖
+npm install
+
+# 4. 配置环境变量
+cp .env.example .env
+# 编辑 .env 设置 CLOUD_API 和 CLOUD_KEY（可选，用于云同步）
+
+# 5. 启动（开发模式）
+npm run dev
+
+# 6. 生产模式（PM2 进程守护）
+npm install -g pm2
+npm run pm2:start
+pm2 save
+pm2 startup
+```
+
+#### 开机自启 / Boot Auto-start
+
+```bash
+# 安装 termux-boot (F-Droid)
+mkdir -p ~/.termux/boot
+cp .termux/boot.sh ~/.termux/boot/gateway.sh
+chmod +x ~/.termux/boot/gateway.sh
+# 手机重启后自动启动网关
+```
+
+#### 网关发现 / Gateway Discovery
+
+网关启动后通过 mDNS 广播服务，支持自动发现的客户端可直接连接。也可手动指定网关 IP：
+
+```
+http://<gateway-ip>:8080
+```
+
 ### Android Client / Android 客户端
 
 ```bash
@@ -128,6 +207,15 @@ npx cap open android
 # Or build APK directly / 或直接构建 APK
 cd android && ./gradlew assembleDebug
 ```
+
+#### 双模式连接 / Dual-mode Connection
+
+移动端支持 **云端** 和 **本地网关** 两种模式：
+
+- **云端模式**：连接 Cloudflare Worker，需登录，支持远程访问
+- **本地模式**：直连局域网网关，无需登录，延迟 <10ms，断网可用
+
+切换路径：`设置 → 连接设置 → 选择模式`
 
 ## API Endpoints / API 接口
 
@@ -161,6 +249,59 @@ cd android && ./gradlew assembleDebug
 | PUT | `/api/scenes/:id` | Update scene / 更新场景 |
 | DELETE | `/api/scenes/:id` | Delete scene / 删除场景 |
 | POST | `/api/scenes/:id/execute` | Execute scene / 执行场景 |
+
+---
+
+## Local Gateway / 本地网关
+
+### Features / 特性
+
+- **HTTP + MQTT 双协议** - 设备可通过 HTTP 或 MQTT 接入
+- **自动注册** - 未知设备首次上报自动创建
+- **规则引擎** - 本地自动化（如温度 > 30°C → 开风扇）
+- **命令分发** - MQTT 优先，失败转 HTTP 轮询
+- **云同步** - 可选同步到 Cloudflare Worker
+- **mDNS 发现** - 支持自动发现网关
+- **数据保留** - 自动清理 180 天前数据
+- **开机自启** - termux-boot + PM2
+
+### Gateway API / 网关接口
+
+Base URL: `http://<gateway-ip>:8080`
+
+| Method | Path | Description / 描述 |
+|--------|------|--------------------|
+| GET | `/health` | Health check / 健康检查 |
+| GET | `/api/devices` | Device list / 设备列表 |
+| GET | `/api/devices/:id` | Device details / 设备详情 |
+| POST | `/api/devices` | Register device / 注册设备 |
+| PUT | `/api/devices/:id` | Update device / 更新设备 |
+| DELETE | `/api/devices/:id` | Delete device / 删除设备 |
+| POST | `/api/devices/:id/command` | Send command / 下发命令 |
+| POST | `/api/telemetry` | Report telemetry / 上报遥测 |
+| POST | `/api/telemetry/batch` | Batch report / 批量上报 |
+| GET | `/api/telemetry/:deviceId` | Query telemetry / 查询遥测 |
+| GET | `/api/commands/:deviceId` | Poll commands (HTTP) / 轮询命令 |
+| POST | `/api/commands/:deviceId/ack` | Command ACK / 命令回执 |
+| GET | `/api/rules` | Rule list / 规则列表 |
+| POST | `/api/rules` | Create rule / 创建规则 |
+| PUT | `/api/rules/:id` | Update rule / 更新规则 |
+| DELETE | `/api/rules/:id` | Delete rule / 删除规则 |
+| GET | `/api/admin/status` | Gateway status / 网关状态 |
+| POST | `/api/admin/sync` | Trigger cloud sync / 触发云同步 |
+
+### MQTT Topics / MQTT 主题
+
+| Topic | Direction | Description / 描述 |
+|-------|-----------|--------------------|
+| `devices/{id}/telemetry` | Device → Gateway | Telemetry report / 遥测上报 |
+| `devices/{id}/command` | Gateway → Device | Command delivery / 命令下发 |
+| `devices/{id}/status` | Device → Gateway | Online status / 在线状态 |
+| `devices/{id}/ack` | Device → Gateway | Command ACK / 命令回执 |
+
+### Authentication / 鉴权
+
+MQTT 连接使用 `device_id` + `secret`（SHA-256 + 随机盐）认证。HTTP 接口无需鉴权（局域网可信）。
 
 ## Data Models / 数据模型
 
@@ -210,7 +351,7 @@ CREATE TABLE scenes (
 
 ## Protocol Support / 协议支持
 
-### MQTT Topic Structure / MQTT 主题结构
+### Cloud MQTT Topic Structure / 云端 MQTT 主题结构
 
 ```
 cloudiot/devices/{deviceId}/cmd      # Device command receiving / 设备接收命令
@@ -218,12 +359,70 @@ cloudiot/devices/{deviceId}/status   # Device status reporting / 设备状态上
 cloudiot/users/{userId}/alert        # User alert notifications / 用户告警通知
 ```
 
+### Local Gateway MQTT / 本地网关 MQTT
+
+```
+devices/{deviceId}/telemetry         # Telemetry report / 遥测上报
+devices/{deviceId}/command           # Command delivery / 命令下发
+devices/{deviceId}/status            # Online status / 在线状态
+devices/{deviceId}/ack               # Command ACK / 命令回执
+```
+
+### ESP32 接入示例 / ESP32 Example
+
+**HTTP 模式：**
+
+```cpp
+// 上报遥测
+HTTPClient http;
+http.begin("http://<gateway-ip>:8080/api/telemetry");
+http.addHeader("Content-Type", "application/json");
+http.POST("{\"device_id\":\"esp32-001\",\"data\":{\"temperature\":25.5}}");
+
+// 轮询命令
+http.begin("http://<gateway-ip>:8080/api/commands/esp32-001");
+int code = http.GET();
+```
+
+**MQTT 模式：**
+
+```cpp
+#include <PubSubClient.h>
+
+WiFiClient espClient;
+PubSubClient mqtt(espClient);
+
+void setup() {
+  mqtt.setServer("<gateway-ip>", 1883);
+  mqtt.setCallback(callback);
+  mqtt.connect("esp32-001", "device-secret");
+  mqtt.subscribe("devices/esp32-001/command");
+}
+
+void loop() {
+  mqtt.loop();
+  String payload = "{\"data\":{\"temperature\":25.5}}";
+  mqtt.publish("devices/esp32-001/telemetry", payload.c_str());
+}
+```
+
 ## Security Design / 安全设计
 
-- **JWT Authentication / JWT 认证** - Access token + refresh token mechanism / 访问令牌 + 刷新令牌机制
+- **JWT Authentication / JWT 认证** - Access token + refresh token mechanism (cloud mode) / 访问令牌 + 刷新令牌机制（云端模式）
+- **MQTT Authentication / MQTT 认证** - device_id + secret (SHA-256 + random salt) / device_id + secret（SHA-256 + 随机盐）
 - **Data Encryption / 数据加密** - AES-256-GCM encryption for sensitive data / 敏感数据 AES-256-GCM 加密
-- **Transport Security / 传输安全** - TLS 1.3 encrypted transmission / TLS 1.3 加密传输
+- **Transport Security / 传输安全** - TLS 1.3 encrypted transmission (cloud) / TLS 1.3 加密传输（云端）
+- **Local Network Trust / 局域网可信** - Local gateway assumes trusted LAN environment / 本地网关假设局域网可信环境
 - **Access Control / 权限控制** - Device-level permission management / 设备级权限管理
+
+## Connection Modes / 连接模式
+
+| Mode | Backend | Auth | Latency | Offline |
+|------|---------|------|---------|---------|
+| Cloud | Cloudflare Worker | JWT | 100ms~2s | ❌ |
+| Local | LAN Gateway | None | <10ms | ✅ |
+
+Mobile app auto-detects local gateway and can switch manually via Settings → Connection.
 
 ## License / 许可证
 
