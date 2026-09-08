@@ -1,6 +1,5 @@
 // 规则引擎
 import { ruleModel, RuleCondition, RuleAction } from '../models/rule';
-import { commandDispatcher } from './command-dispatcher';
 import { db } from '../db/index';
 
 interface TelemetryData {
@@ -28,10 +27,12 @@ function evaluateCondition(cond: RuleCondition, data: Record<string, unknown>): 
 }
 
 // 执行动作
-function executeAction(action: RuleAction, source: TelemetryData): void {
+async function executeAction(action: RuleAction, source: TelemetryData): Promise<void> {
   switch (action.type) {
     case 'command': {
       if (action.targetDevice && action.command) {
+        // 动态导入避免与 command-dispatcher 的循环依赖
+        const { commandDispatcher } = await import('./command-dispatcher');
         commandDispatcher.insert({
           device_id: action.targetDevice,
           command: action.command,
@@ -72,7 +73,9 @@ export const ruleEngine = {
         const action: RuleAction = JSON.parse(rule.action);
 
         if (evaluateCondition(cond, source.data)) {
-          executeAction(action, source);
+          executeAction(action, source).catch((err) => {
+            console.error(`[rule] action error for rule ${rule.id}:`, err);
+          });
         }
       } catch (err) {
         console.error(`[rule] error parsing rule ${rule.id}:`, err);

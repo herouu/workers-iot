@@ -5,12 +5,12 @@ import { ruleEngine } from './rule-engine';
 
 let mqttPublish: ((topic: string, payload: string) => void) | null = null;
 
-// 注册 MQTT 发布函数（由 mqtt.ts 注入）
-export function registerMqttPublisher(fn: (topic: string, payload: string) => void) {
-  mqttPublish = fn;
-}
-
 export const commandDispatcher = {
+  // 注册 MQTT 发布函数（由 mqtt.ts 注入）
+  registerMqttPublisher(fn: (topic: string, payload: string) => void): void {
+    mqttPublish = fn;
+  },
+
   // 插入命令并尝试投递
   insert(cmd: NewCommand): void {
     const command = commandModel.insert(cmd);

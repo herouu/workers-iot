@@ -14,6 +14,7 @@
     "pm2:save": "pm2 save"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.1",
     "aedes": "^0.51.3",
     "better-sqlite3": "^11.8.1",
     "bonjour": "^3.5.0",

@@ -65,7 +65,7 @@ export function startHttpServer() {
     });
   } else {
     // Node.js 模式
-    import('hono/node-server').then(({ serve }) => {
+    import('@hono/node-server').then(({ serve }) => {
       serve({ fetch: app.fetch, port });
     });
   }
