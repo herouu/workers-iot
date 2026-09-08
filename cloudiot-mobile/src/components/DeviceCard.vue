@@ -1,32 +1,30 @@
 <template>
-  <div 
-    class="bg-white rounded-xl p-4 shadow-sm"
-    @click="$emit('click')"
-  >
-    <div class="flex items-center justify-between mb-2">
-      <span :class="['w-2 h-2 rounded-full', device.online ? 'bg-green-500' : 'bg-gray-400']"></span>
-      <span class="text-xs text-gray-500">{{ device.online ? '在线' : '离线' }}</span>
+  <Card class="p-4 flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <div 
+        class="w-12 h-12 rounded-xl flex items-center justify-center"
+        :class="device.online ? 'bg-brand/10 text-brand' : 'bg-surface-elevated text-text-muted'"
+      >
+        <span class="text-2xl">{{ getDeviceIcon(device.type) }}</span>
+      </div>
+      <Switch 
+        :model-value="device.state?.power" 
+        @update:model-value="$emit('toggle', device)"
+        :disabled="!device.online"
+      />
     </div>
     
-    <div class="text-center py-3">
-      <div class="text-3xl mb-2">{{ getDeviceIcon(device.type) }}</div>
-      <div class="text-sm font-medium truncate">{{ device.name }}</div>
-      <div class="text-xs text-gray-500 mt-1">{{ device.room || '未分组' }}</div>
+    <div>
+      <div class="text-text-primary text-sm font-semibold truncate">{{ device.name }}</div>
+      <div class="text-text-secondary text-xs mt-0.5">{{ device.room || '未分组' }}</div>
     </div>
-    
-    <van-button 
-      :type="device.state?.power ? 'primary' : 'default'"
-      size="small"
-      block
-      :disabled="!device.online"
-      @click.stop="$emit('toggle', device)"
-    >
-      {{ device.state?.power ? '关闭' : '开启' }}
-    </van-button>
-  </div>
+  </Card>
 </template>
 
 <script setup lang="ts">
+import Card from '@/components/ui/card/Card.vue'
+import Switch from '@/components/ui/switch/Switch.vue'
+
 interface Device {
   id: string
   name: string
@@ -46,7 +44,6 @@ interface Props {
 defineProps<Props>()
 
 defineEmits<{
-  (e: 'click'): void
   (e: 'toggle', device: Device): void
 }>()
 
@@ -59,6 +56,10 @@ function getDeviceIcon(type: string): string {
     thermostat: '🌡️',
     lock: '🔒',
     outlet: '🔌',
+    ac: '🌬️',
+    fan: '🌀',
+    speaker: '🔊',
+    router: '📡',
     generic: '📱'
   }
   return icons[type] || '📱'

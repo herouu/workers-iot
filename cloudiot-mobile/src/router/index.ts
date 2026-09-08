@@ -16,6 +16,16 @@ const routes = [
     component: () => import('@/pages/RegisterPage.vue')
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/pages/ForgotPasswordPage.vue')
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/pages/ResetPasswordPage.vue')
+  },
+  {
     path: '/home',
     name: 'Home',
     component: () => import('@/pages/HomePage.vue')
@@ -36,6 +46,11 @@ const routes = [
     component: () => import('@/pages/ScenesPage.vue')
   },
   {
+    path: '/statistics',
+    name: 'Statistics',
+    component: () => import('@/pages/StatisticsPage.vue')
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/pages/SettingsPage.vue')
@@ -54,8 +69,9 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
   const isAuthenticated = localStorage.getItem('accessToken')
-  
-  if (!isAuthenticated && !['/login', '/register'].includes(to.path)) {
+  const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password']
+
+  if (!isAuthenticated && !publicPaths.includes(to.path)) {
     next('/login')
   } else if (isAuthenticated && ['/login', '/register'].includes(to.path)) {
     next('/home')

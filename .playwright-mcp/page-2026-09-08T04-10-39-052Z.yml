@@ -1,0 +1,3 @@
+- group [ref=e21]:
+  - alert [ref=e23]
+  - alert [ref=e25]

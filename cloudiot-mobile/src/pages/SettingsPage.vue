@@ -1,68 +1,70 @@
 <template>
-  <div class="settings-page">
-    <!-- 顶部渐变背景 -->
-    <div class="settings-header">
-      <div class="header-content">
-        <div class="avatar-section">
-          <div class="avatar">
-            <span class="avatar-icon">👤</span>
-          </div>
-          <div class="user-info">
-            <div class="username">用户账号</div>
-            <div class="user-role">智能家居用户</div>
-          </div>
+  <div class="min-h-screen bg-surface">
+    <!-- 顶部导航 -->
+    <div class="bg-surface px-5 pt-4 pb-6 border-b border-surface-elevated/50">
+      <div class="flex items-center">
+        <button @click="$router.back()" class="text-text-primary inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-surface-elevated transition-colors">
+          <ArrowLeft :size="20" />
+        </button>
+        <div class="flex-1 text-center text-text-primary text-lg font-semibold">设置</div>
+        <div class="w-10 h-10 rounded-full bg-surface-elevated border-2 border-brand flex items-center justify-center">
+          <span class="text-sm font-semibold text-brand">U</span>
         </div>
       </div>
     </div>
 
-    <!-- 设置选项卡片 -->
-    <div class="settings-content">
-      <div class="section-title">通用设置</div>
-      <div class="settings-card">
-        <div class="setting-item" @click="$router.push('/settings/profile')">
-          <div class="setting-left">
-            <div class="setting-icon account-icon">👤</div>
-            <span class="setting-label">账号信息</span>
+    <!-- 设置选项 -->
+    <div class="px-5 py-4 space-y-4">
+      <div class="text-text-muted text-xs uppercase tracking-wider">通用设置</div>
+      <div class="bg-surface-card rounded-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-surface-elevated/50 transition-colors" @click="$router.push('/settings/profile')">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+              <User :size="18" />
+            </div>
+            <span class="text-text-primary">账号信息</span>
           </div>
-          <div class="setting-arrow">›</div>
+          <span class="text-text-muted">›</span>
         </div>
-        <div class="setting-divider"></div>
-        <div class="setting-item" @click="handleUpdate">
-          <div class="setting-left">
-            <div class="setting-icon update-icon">🔄</div>
-            <span class="setting-label">检查更新</span>
+        <div class="h-px bg-surface-elevated/50 mx-4"></div>
+        <div class="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-surface-elevated/50 transition-colors" @click="handleUpdate">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+              <RefreshCw :size="18" />
+            </div>
+            <span class="text-text-primary">检查更新</span>
           </div>
-          <div class="setting-value">v1.0.0</div>
+          <span class="text-text-muted text-sm">v1.0.0</span>
         </div>
       </div>
 
-      <div class="section-title">其他</div>
-      <div class="settings-card">
-        <div class="setting-item" @click="handleAbout">
-          <div class="setting-left">
-            <div class="setting-icon about-icon">ℹ️</div>
-            <span class="setting-label">关于我们</span>
+      <div class="text-text-muted text-xs uppercase tracking-wider">其他</div>
+      <div class="bg-surface-card rounded-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-surface-elevated/50 transition-colors" @click="handleAbout">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+              <Info :size="18" />
+            </div>
+            <span class="text-text-primary">关于我们</span>
           </div>
-          <div class="setting-arrow">›</div>
+          <span class="text-text-muted">›</span>
         </div>
       </div>
 
       <!-- 退出登录 -->
-      <div class="logout-section">
-        <button class="logout-btn" @click="handleLogout">
-          退出登录
-        </button>
-      </div>
+      <button 
+        @click="handleLogout"
+        class="w-full h-12 mt-6 bg-red-600/10 hover:bg-red-600/20 text-red-500 font-medium rounded-xl transition-colors"
+      >
+        退出登录
+      </button>
     </div>
-
-    <!-- 底部导航占位 -->
-    <div class="tab-bar-placeholder"></div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { showConfirmDialog, showToast } from 'vant'
+import { User, RefreshCw, Info, ArrowLeft } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -74,178 +76,23 @@ function handleUpdate() {
   showToast('已是最新版本')
 }
 
-async function handleLogout() {
-  try {
-    await showConfirmDialog({
-      title: '提示',
-      message: '确定要退出登录吗?'
-    })
-    
+function handleLogout() {
+  if (confirm('确定要退出登录吗?')) {
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
     router.replace('/login')
-  } catch {
-    // 取消操作
   }
 }
+
+function showToast(message: string) {
+  const toast = document.createElement('div')
+  toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 bg-surface-elevated text-text-primary px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-medium'
+  toast.textContent = message
+  document.body.appendChild(toast)
+  setTimeout(() => {
+    toast.style.opacity = '0'
+    toast.style.transition = 'opacity 0.3s'
+    setTimeout(() => toast.remove(), 300)
+  }, 2000)
+}
 </script>
-
-<style scoped>
-.settings-page {
-  min-height: 100vh;
-  background: #f5f6f8;
-}
-
-.settings-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 48px 20px 30px;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.avatar-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar {
-  width: 72px;
-  height: 72px;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-}
-
-.avatar-icon {
-  font-size: 36px;
-}
-
-.user-info {
-  text-align: center;
-  color: #fff;
-}
-
-.username {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.user-role {
-  font-size: 13px;
-  opacity: 0.85;
-  margin-top: 2px;
-}
-
-.settings-content {
-  padding: 20px 16px;
-}
-
-.section-title {
-  font-size: 13px;
-  color: #969799;
-  margin-bottom: 10px;
-  padding-left: 4px;
-}
-
-.settings-card {
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.setting-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.setting-item:active {
-  background: #f5f5f5;
-}
-
-.setting-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.setting-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-}
-
-.account-icon {
-  background: #e8f4ff;
-}
-
-.update-icon {
-  background: #fff7e6;
-}
-
-.about-icon {
-  background: #f0f0f0;
-}
-
-.setting-label {
-  font-size: 15px;
-  color: #323233;
-}
-
-.setting-value {
-  font-size: 14px;
-  color: #969799;
-}
-
-.setting-arrow {
-  font-size: 18px;
-  color: #c8c9cc;
-}
-
-.setting-divider {
-  height: 1px;
-  background: #ebedf0;
-  margin: 0 16px;
-}
-
-.logout-section {
-  margin-top: 32px;
-}
-
-.logout-btn {
-  width: 100%;
-  height: 48px;
-  background: #fff;
-  border: none;
-  border-radius: 24px;
-  font-size: 16px;
-  color: #ee0a24;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.logout-btn:active {
-  background: #fff5f5;
-}
-
-.tab-bar-placeholder {
-  height: 70px;
-}
-</style>

@@ -18,6 +18,10 @@ export function jsonError(message: string, status: number = 400): Response {
   return jsonResponse({ error: message }, status)
 }
 
+export function badRequest(message: string = 'Bad request'): Response {
+  return jsonError(message, 400)
+}
+
 export function notFound(message: string = 'Not found'): Response {
   return jsonError(message, 404)
 }

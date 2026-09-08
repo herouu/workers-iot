@@ -76,20 +76,18 @@
 
     <!-- 设备列表 -->
     <div class="device-list-section">
-      <van-empty 
-        v-if="filteredDevices.length === 0" 
-        class="custom-empty"
-        image="https://cdn.jsdelivr.net/npm/@vant/assets/custom-empty-image.png"
-        image-size="100"
-        description="暂无设备，点击添加开始使用"
-      >
-        <template #default>
-          <div class="empty-add-btn" @click="$router.push('/devices/add')">
-            <span class="add-icon">+</span>
-            <span>添加设备</span>
-          </div>
-        </template>
-      </van-empty>
+      <!-- 空状态 -->
+      <div v-if="filteredDevices.length === 0" class="flex flex-col items-center py-16">
+        <div class="text-6xl mb-4">📱</div>
+        <div class="text-text-muted mb-4">暂无设备，点击添加开始使用</div>
+        <button 
+          @click="$router.push('/devices/add')"
+          class="flex items-center gap-2 px-6 py-3 bg-brand text-surface rounded-full font-medium"
+        >
+          <span class="text-lg">+</span>
+          <span>添加设备</span>
+        </button>
+      </div>
 
       <div v-else class="device-list">
         <div 
@@ -120,55 +118,27 @@
             </div>
             
             <!-- 状态开关 -->
-            <van-switch
+            <Switch
               :model-value="device.status === 'on'"
-              size="20px"
-              active-color="#07c160"
-              inactive-color="#dcdee0"
-              @click.stop
-              @change="(val: boolean) => handleDeviceToggle(device, val)"
+              @update:model-value="(val: boolean) => handleDeviceToggle(device, val)"
+              class="scale-75"
             />
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 底部导航 -->
-    <van-tabbar v-model="activeTab" route>
-      <van-tabbar-item to="/home" icon-prefix="iconfont">
-        <template #icon>
-          <span class="iconfont icon-home"></span>
-        </template>
-        首页
-      </van-tabbar-item>
-      <van-tabbar-item to="/devices" icon-prefix="iconfont">
-        <template #icon>
-          <span class="iconfont icon-device"></span>
-        </template>
-        设备
-      </van-tabbar-item>
-      <van-tabbar-item to="/scenes" icon-prefix="iconfont">
-        <template #icon>
-          <span class="iconfont icon-scene"></span>
-        </template>
-        场景
-      </van-tabbar-item>
-      <van-tabbar-item to="/settings" icon-prefix="iconfont">
-        <template #icon>
-          <span class="iconfont icon-settings"></span>
-        </template>
-        设置
-      </van-tabbar-item>
-    </van-tabbar>
+    <!-- 底部导航占位 -->
+    <div class="h-16"></div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Device } from '@/types'
+import Switch from '@/components/ui/switch/Switch.vue'
 
 const activeFilter = ref('all')
-const activeTab = ref('devices')
 
 // 模拟数据
 const devices = ref<Device[]>([
@@ -224,13 +194,13 @@ function toggleFavorite(device: Device) {
 <style scoped>
 .devices-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 70px;
+  background: #1a1a2e;
+  padding-bottom: 20px;
 }
 
 /* 顶部背景 */
 .header-bg {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2d2d44 0%, #3d3d5c 100%);
   padding: 48px 16px 24px;
   border-radius: 0 0 24px 24px;
 }
@@ -277,7 +247,7 @@ function toggleFavorite(device: Device) {
 
 .stat-card {
   flex: 1;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 16px;
@@ -315,10 +285,10 @@ function toggleFavorite(device: Device) {
 
 .filter-tabs {
   display: flex;
-  background: #fff;
+  background: #2d2d44;
   border-radius: 16px;
   padding: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .filter-tab {
@@ -327,7 +297,7 @@ function toggleFavorite(device: Device) {
   padding: 10px 8px;
   border-radius: 12px;
   font-size: 14px;
-  color: #666;
+  color: #a0a0b0;
   transition: all 0.3s;
   display: flex;
   align-items: center;
@@ -336,8 +306,8 @@ function toggleFavorite(device: Device) {
 }
 
 .filter-tab.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+  background: #3d3d5c;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -402,24 +372,6 @@ function toggleFavorite(device: Device) {
   padding: 16px;
 }
 
-.custom-empty {
-  margin-top: 60px;
-}
-
-.empty-add-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 24px;
-  color: #fff;
-  font-weight: 600;
-  margin-top: 16px;
-  cursor: pointer;
-}
-
 .device-list {
   display: flex;
   flex-direction: column;
@@ -427,20 +379,19 @@ function toggleFavorite(device: Device) {
 }
 
 .device-item {
-  background: #fff;
+  background: #2d2d44;
   border-radius: 16px;
   padding: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   transition: all 0.3s;
 }
 
 .device-item.favorite {
-  background: linear-gradient(135deg, #fff9f0 0%, #fff5e6 100%);
-  border: 1px solid #ffe4b5;
+  background: linear-gradient(135deg, rgba(255, 183, 0, 0.1) 0%, rgba(255, 183, 0, 0.05) 100%);
+  border: 1px solid rgba(255, 183, 0, 0.3);
 }
 
 .device-item-left {
@@ -459,7 +410,7 @@ function toggleFavorite(device: Device) {
 
 .favorite-btn {
   font-size: 20px;
-  color: #dcdee0;
+  color: #6b7280;
   cursor: pointer;
   transition: all 0.2s;
   padding: 4px;
@@ -476,7 +427,7 @@ function toggleFavorite(device: Device) {
 
 .device-item:active {
   transform: scale(0.98);
-  background: #f8f8f8;
+  background: #3d3d5c;
 }
 
 .device-icon-wrapper {
@@ -490,11 +441,11 @@ function toggleFavorite(device: Device) {
 }
 
 .device-icon-wrapper.online {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  background: rgba(74, 222, 128, 0.15);
 }
 
 .device-icon-wrapper.offline {
-  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  background: rgba(107, 114, 128, 0.15);
 }
 
 .device-info {
@@ -504,13 +455,13 @@ function toggleFavorite(device: Device) {
 .device-name {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: #ffffff;
   margin-bottom: 4px;
 }
 
 .device-location {
   font-size: 13px;
-  color: #999;
+  color: #a0a0b0;
 }
 
 .device-status {
@@ -534,19 +485,5 @@ function toggleFavorite(device: Device) {
 .status-indicator.offline {
   background: #f5f5f5;
   color: #969799;
-}
-
-/* 底部导航 */
-:deep(.van-tabbar) {
-  background: #fff;
-  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.05);
-}
-
-:deep(.van-tabbar-item--active) {
-  color: #667eea;
-}
-
-:deep(.van-tabbar-item__icon) {
-  font-size: 22px;
 }
 </style>

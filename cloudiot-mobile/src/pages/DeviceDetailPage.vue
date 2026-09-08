@@ -1,70 +1,112 @@
 <template>
-  <div class="device-detail-page">
-    <van-nav-bar
-      title="设备详情"
-      left-arrow
-      @click-left="onBack"
-      :right-text="device.status === 'online' ? '在线' : '离线'"
-    />
+  <div class="min-h-screen bg-surface">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 bg-surface/95 backdrop-blur border-b border-surface-elevated/50 px-5 py-4 flex items-center justify-between">
+      <button @click="router.back()" class="text-text-primary text-2xl">‹</button>
+      <span class="text-text-primary font-semibold">设备详情</span>
+      <span :class="device.status === 'online' ? 'text-brand' : 'text-text-muted'" class="text-sm">
+        {{ device.status === 'online' ? '在线' : '离线' }}
+      </span>
+    </header>
 
-    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <div class="content">
-        <!-- 设备信息卡片 -->
-        <van-cell-group title="设备信息">
-          <van-cell title="设备名称" :value="device.name" />
-          <van-cell title="设备 ID" :value="device.id" />
-          <van-cell title="设备类型" :value="device.type" />
-          <van-cell title="位置" :value="device.location || '未设置'" />
-          <van-cell title="最后更新" :value="formatTime(device.lastUpdate)" />
-        </van-cell-group>
+    <!-- 加载状态 -->
+    <div v-if="loading" class="flex items-center justify-center py-20">
+      <div class="animate-spin w-8 h-8 border-3 border-brand border-t-transparent rounded-full"></div>
+    </div>
 
-        <!-- 实时数据 -->
-        <van-cell-group title="实时数据" v-if="device.data">
-          <van-cell
-            v-for="(value, key) in device.data"
-            :key="key"
-            :title="formatKey(key)"
-            :value="value"
-          />
-        </van-cell-group>
-
-        <!-- 控制面板 -->
-        <van-cell-group title="控制面板">
-          <div class="control-buttons">
-            <van-button
-              v-for="control in controls"
-              :key="control.key"
-              type="primary"
-              size="small"
-              @click="sendCommand(control.key)"
-            >
-              {{ control.label }}
-            </van-button>
+    <div v-else class="px-5 py-4 space-y-4">
+      <!-- 设备信息 -->
+      <div class="bg-surface-card rounded-2xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-surface-elevated/50">
+          <span class="text-text-muted text-xs uppercase tracking-wider">设备信息</span>
+        </div>
+        <div class="divide-y divide-surface-elevated/50">
+          <div class="flex items-center justify-between px-4 py-3">
+            <span class="text-text-secondary">设备名称</span>
+            <span class="text-text-primary">{{ device.name }}</span>
           </div>
-        </van-cell-group>
-
-        <!-- 历史数据 -->
-        <van-cell-group title="历史数据">
-          <van-tabs v-model:active="activeTab" @change="onTabChange">
-            <van-tab title="24小时" name="24h" />
-            <van-tab title="7天" name="7d" />
-            <van-tab title="30天" name="30d" />
-          </van-tabs>
-          <div class="chart-container" v-if="chartData.length > 0">
-            <van-empty description="暂无数据" v-if="chartData.length === 0" />
+          <div class="flex items-center justify-between px-4 py-3">
+            <span class="text-text-secondary">设备 ID</span>
+            <span class="text-text-primary text-sm font-mono">{{ device.id }}</span>
           </div>
-        </van-cell-group>
+          <div class="flex items-center justify-between px-4 py-3">
+            <span class="text-text-secondary">设备类型</span>
+            <span class="text-text-primary">{{ device.type }}</span>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3">
+            <span class="text-text-secondary">位置</span>
+            <span class="text-text-primary">{{ device.location || '未设置' }}</span>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3">
+            <span class="text-text-secondary">最后更新</span>
+            <span class="text-text-primary text-sm">{{ formatTime(device.lastUpdate) }}</span>
+          </div>
+        </div>
       </div>
-    </van-pull-refresh>
 
-    <van-loading vertical v-if="loading">加载中...</van-loading>
+      <!-- 实时数据 -->
+      <div v-if="device.data" class="bg-surface-card rounded-2xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-surface-elevated/50">
+          <span class="text-text-muted text-xs uppercase tracking-wider">实时数据</span>
+        </div>
+        <div class="divide-y divide-surface-elevated/50">
+          <div 
+            v-for="(value, key) in device.data" 
+            :key="key"
+            class="flex items-center justify-between px-4 py-3"
+          >
+            <span class="text-text-secondary">{{ formatKey(key) }}</span>
+            <span class="text-text-primary">{{ value }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 控制面板 -->
+      <div class="bg-surface-card rounded-2xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-surface-elevated/50">
+          <span class="text-text-muted text-xs uppercase tracking-wider">控制面板</span>
+        </div>
+        <div class="p-4 flex flex-wrap gap-2">
+          <button 
+            v-for="control in controls" 
+            :key="control.key"
+            @click="sendCommand(control.key)"
+            class="px-4 py-2 bg-brand/10 text-brand rounded-xl text-sm font-medium hover:bg-brand/20 transition-colors"
+          >
+            {{ control.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 历史数据 -->
+      <div class="bg-surface-card rounded-2xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-surface-elevated/50">
+          <span class="text-text-muted text-xs uppercase tracking-wider">历史数据</span>
+        </div>
+        <div class="flex gap-2 p-4">
+          <button 
+            v-for="tab in ['24h', '7d', '30d']" 
+            :key="tab"
+            @click="activeTab = tab; onTabChange()"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="activeTab === tab ? 'bg-surface-elevated text-text-primary' : 'text-text-muted hover:text-text-primary'"
+          >
+            {{ tab === '24h' ? '24小时' : tab === '7d' ? '7天' : '30天' }}
+          </button>
+        </div>
+        <div class="px-4 pb-4">
+          <div v-if="chartData.length === 0" class="text-center py-8 text-text-muted">
+            暂无数据
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast } from 'vant'
 import { getDevice, getDeviceHistory, controlDevice } from '@/api/device'
 
 const route = useRoute()
@@ -81,7 +123,6 @@ const device = ref<any>({
   data: null
 })
 const loading = ref(false)
-const refreshing = ref(false)
 const activeTab = ref('24h')
 const chartData = ref<any[]>([])
 
@@ -92,10 +133,6 @@ const controls = [
 ]
 
 let refreshInterval: number | null = null
-
-const onBack = () => {
-  router.back()
-}
 
 const formatTime = (time: string | null) => {
   if (!time) return '未知'
@@ -140,13 +177,6 @@ const sendCommand = async (command: string) => {
   }
 }
 
-const onRefresh = async () => {
-  await fetchDevice()
-  await fetchHistory()
-  refreshing.value = false
-  showToast('刷新成功')
-}
-
 const onTabChange = () => {
   fetchHistory()
 }
@@ -157,7 +187,6 @@ onMounted(async () => {
   await fetchHistory()
   loading.value = false
 
-  // 每 30 秒自动刷新
   refreshInterval = window.setInterval(fetchDevice, 30000)
 })
 
@@ -166,27 +195,16 @@ onUnmounted(() => {
     clearInterval(refreshInterval)
   }
 })
+
+function showToast(message: string) {
+  const toast = document.createElement('div')
+  toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 bg-surface-elevated text-text-primary px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-medium'
+  toast.textContent = message
+  document.body.appendChild(toast)
+  setTimeout(() => {
+    toast.style.opacity = '0'
+    toast.style.transition = 'opacity 0.3s'
+    setTimeout(() => toast.remove(), 300)
+  }, 2000)
+}
 </script>
-
-<style scoped>
-.device-detail-page {
-  min-height: 100vh;
-  background: #f7f8fa;
-}
-
-.content {
-  padding: 12px;
-}
-
-.control-buttons {
-  display: flex;
-  gap: 12px;
-  padding: 16px;
-  flex-wrap: wrap;
-}
-
-.chart-container {
-  height: 200px;
-  padding: 16px;
-}
-</style>
