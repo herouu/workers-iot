@@ -73,10 +73,20 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-  const isAuthenticated = localStorage.getItem('accessToken')
+  const isAuthenticated = !!localStorage.getItem('accessToken')
   const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password']
 
-  if (!isAuthenticated && !publicPaths.includes(to.path)) {
+  // 本地网关模式免鉴权（本地无 auth 端点）
+  let isLocalMode = false
+  try {
+    const connRaw = localStorage.getItem('cloudiot-connection')
+    if (connRaw) {
+      const parsed = JSON.parse(connRaw)
+      isLocalMode = parsed?.mode === 'local'
+    }
+  } catch { /* ignore */ }
+
+  if (!isAuthenticated && !isLocalMode && !publicPaths.includes(to.path)) {
     next('/login')
   } else if (isAuthenticated && ['/login', '/register'].includes(to.path)) {
     next('/home')

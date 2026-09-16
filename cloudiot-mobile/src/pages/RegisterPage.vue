@@ -7,6 +7,12 @@
       <span class="w-6"></span>
     </header>
 
+    <div v-if="isLocalMode" class="px-5 pt-5">
+      <div class="mb-4 rounded-xl bg-surface-elevated border border-surface-elevated px-4 py-3 text-sm text-text-secondary">
+        当前为本地网关模式，无需登录即可控制设备。登录仅用于云端远程访问。
+      </div>
+    </div>
+
     <form @submit.prevent="onSubmit" class="p-5 space-y-4">
       <div class="bg-surface-card rounded-2xl p-4 space-y-3">
         <div>
@@ -72,12 +78,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useConnectionStore } from '@/stores/connection'
 import { register } from '@/api/auth'
 
 const router = useRouter()
+const conn = useConnectionStore()
 const loading = ref(false)
+const isLocalMode = computed(() => conn.isLocal)
 
 const form = ref({
   username: '',

@@ -22,7 +22,12 @@ interface AdapterRequest {
   params?: Record<string, string>
   headers?: Record<string, string>
   requiresAuth?: boolean
+  noFallback?: boolean
 }
+
+// 请求超时：本地网关 3s，云端 8s
+const LOCAL_TIMEOUT = 3000
+const CLOUD_TIMEOUT = 8000
 
 // 路径翻译表: cloud 路径 → local 路径
 const PATH_TRANSLATIONS: Array<{ regex: RegExp; replace: (m: RegExpMatchArray) => string }> = [
@@ -96,59 +101,35 @@ function adaptBody(cloudPath: string, body: any): any {
 }
 
 /**
- * 统一的 API 请求入口。
- *
- * @param cloudPath 原始 cloud 格式的路径（如 /api/v1/devices）
- * @param options 请求选项
- * @param options.requiresAuth 是否强制需要鉴权（默认 cloud 模式需要）
+ * 直接向云端发起请求（local 模式 GET 失敗时的回落通道）。
+ * 云端返回原始 cloud 格式，不做 adaptResponse。
  */
-export async function apiRequest<T = any>(
+async function requestCloud<T = any>(
   cloudPath: string,
-  options: AdapterRequest = {}
+  params: Record<string, string> | undefined,
+  headers: Record<string, string>
 ): Promise<T> {
   const conn = useConnectionStore()
-  const { method = 'GET', body, params, headers = {} } = options
 
-  // 路径
-  const path = conn.isLocal ? translatePath(cloudPath) : cloudPath
-
-  // Base URL
-  const base = conn.apiBaseUrl
-  let fullUrl = `${base}${path}`
+  let url = `${conn.cloudApiBaseUrl}${cloudPath}`
   if (params) {
     const sp = new URLSearchParams(params)
-    fullUrl += `?${sp.toString()}`
-
-    // local 模式追加 query 到已翻译路径
-    if (conn.isLocal && Object.keys(params).length > 0 && !path.includes('?')) {
-      // 已处理
-    }
+    url += `?${sp.toString()}`
   }
 
-  // Headers
   const reqHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...headers,
   }
+  const token = localStorage.getItem('accessToken')
+  if (token) reqHeaders['Authorization'] = `Bearer ${token}`
 
-  // 鉴权（cloud 模式 + 非匿名接口）
-  const needsAuth = options.requiresAuth !== false && conn.requiresAuth
-  if (needsAuth) {
-    const token = localStorage.getItem('accessToken')
-    if (token) reqHeaders['Authorization'] = `Bearer ${token}`
-  }
-
-  // Body
-  const finalBody = conn.isLocal ? adaptBody(cloudPath, body) : body
-
-  // 发送
-  const resp = await fetch(fullUrl, {
-    method,
+  const resp = await fetch(url, {
+    method: 'GET',
     headers: reqHeaders,
-    body: finalBody ? JSON.stringify(finalBody) : undefined,
+    signal: AbortSignal.timeout(CLOUD_TIMEOUT),
   })
 
-  // 解析
   const ct = resp.headers.get('content-type')
   let rawData: any
   if (ct?.includes('application/json')) {
@@ -165,6 +146,98 @@ export async function apiRequest<T = any>(
     throw err
   }
 
-  // 适配响应格式
-  return conn.isLocal ? adaptResponse(cloudPath, rawData) : rawData
+  return rawData as T
+}
+
+/**
+ * 统一的 API 请求入口。
+ *
+ * @param cloudPath 原始 cloud 格式的路径（如 /api/v1/devices）
+ * @param options 请求选项
+ * @param options.requiresAuth 是否强制需要鉴权（默认 cloud 模式需要）
+ * @param options.noFallback 为 true 时即使 GET 也不回落到云端
+ */
+export async function apiRequest<T = any>(
+  cloudPath: string,
+  options: AdapterRequest = {}
+): Promise<T> {
+  const conn = useConnectionStore()
+  const { method = 'GET', body, params, headers = {} } = options
+
+  const isLocal = conn.isLocal
+
+  // 路径
+  const path = isLocal ? translatePath(cloudPath) : cloudPath
+
+  // Base URL
+  const base = conn.apiBaseUrl
+  let fullUrl = `${base}${path}`
+  if (params) {
+    const sp = new URLSearchParams(params)
+    fullUrl += `?${sp.toString()}`
+  }
+
+  // Headers
+  const reqHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...headers,
+  }
+
+  // 鉴权（cloud 模式 + 非匿名接口）
+  const needsAuth = options.requiresAuth !== false && conn.requiresAuth
+  if (needsAuth) {
+    const token = localStorage.getItem('accessToken')
+    if (token) reqHeaders['Authorization'] = `Bearer ${token}`
+  }
+
+  // Body
+  const finalBody = isLocal ? adaptBody(cloudPath, body) : body
+
+  try {
+    // 发送（带超时）
+    const resp = await fetch(fullUrl, {
+      method,
+      headers: reqHeaders,
+      body: finalBody ? JSON.stringify(finalBody) : undefined,
+      signal: AbortSignal.timeout(isLocal ? LOCAL_TIMEOUT : CLOUD_TIMEOUT),
+    })
+
+    // 解析
+    const ct = resp.headers.get('content-type')
+    let rawData: any
+    if (ct?.includes('application/json')) {
+      rawData = await resp.json()
+    } else {
+      rawData = await resp.text()
+    }
+
+    if (!resp.ok) {
+      const msg = rawData?.message || rawData?.error || `请求失败 (${resp.status})`
+      const err: any = new Error(msg)
+      err.status = resp.status
+      err.data = rawData
+      throw err
+    }
+
+    // 适配响应格式
+    return isLocal ? adaptResponse(cloudPath, rawData) : rawData
+  } catch (error: any) {
+    // GET 自动回落云端（写操作不回落，避免双重投递）
+    if (isLocal && method === 'GET' && !options.noFallback) {
+      try {
+        return await requestCloud<T>(cloudPath, params, headers)
+      } catch (cloudError: any) {
+        if (cloudError instanceof TypeError) {
+          throw new Error(cloudError.message)
+        }
+        throw cloudError
+      }
+    }
+
+    // 网络错误使用原始 message
+    if (error instanceof TypeError) {
+      throw new Error(error.message)
+    }
+    throw error
+  }
 }

@@ -77,11 +77,11 @@
           />
           <div class="flex gap-2">
             <button
-              @click="handleDetect"
-              :disabled="loading"
+              @click="handleScan"
+              :disabled="loading || scanning"
               class="flex-1 px-4 py-2 bg-surface-elevated text-text-secondary rounded-lg text-sm font-medium hover:bg-surface-elevated/80 transition-colors"
             >
-              🔍 自动发现
+              {{ scanning ? '扫描中…' : '🔍 扫描局域网' }}
             </button>
             <button
               @click="handleCheck"
@@ -90,6 +90,22 @@
             >
               ✓ 检测
             </button>
+          </div>
+
+          <!-- 扫描结果 -->
+          <div class="mt-2">
+            <p v-if="scanning" class="text-sm text-text-muted">正在扫描局域网，最多约 5 网段…</p>
+            <div v-if="discovered.length" class="space-y-2">
+              <div
+                v-for="g in discovered"
+                :key="g.url"
+                @click="applyGateway(g)"
+                class="flex items-center justify-between px-3 py-2 bg-surface-elevated rounded-lg cursor-pointer active:bg-surface-elevated/70 transition-colors"
+              >
+                <span class="text-text-primary text-sm font-mono">{{ g.url }}</span>
+                <span class="text-xs text-text-muted">{{ g.gatewayId ? '网关' : '未识别' }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -108,7 +124,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useConnectionStore } from '@/stores/connection'
+import { useConnectionStore, type DiscoveredGateway } from '@/stores/connection'
 
 const router = useRouter()
 const conn = useConnectionStore()
@@ -116,6 +132,8 @@ const conn = useConnectionStore()
 const localUrl = ref(conn.gatewayUrl)
 const showLocalConfig = ref(false)
 const loading = ref(false)
+const scanning = ref(false)
+const discovered = ref<DiscoveredGateway[]>([])
 
 onMounted(() => {
   showLocalConfig.value = conn.isLocal
@@ -127,14 +145,23 @@ async function handleSwitch(mode: 'cloud' | 'local') {
   try {
     if (mode === 'local') {
       showLocalConfig.value = true
-      // 如果已有地址，直接检测
       if (localUrl.value) {
+        // 已有地址：直接检测
         const ok = await conn.checkLocalGateway(localUrl.value)
         if (ok) {
           conn.setMode('local')
           showToast('已切换到本地网关')
         } else {
           showToast('网关不可达，请检查地址')
+        }
+      } else {
+        // 无地址：自动发现（mDNS + 网段扫描）
+        const ok = await conn.switchMode('local')
+        if (ok) {
+          localUrl.value = conn.gatewayUrl
+          showToast('已自动发现并连接本地网关')
+        } else {
+          showToast('未发现本地网关，请手动输入地址')
         }
       }
     } else {
@@ -146,18 +173,33 @@ async function handleSwitch(mode: 'cloud' | 'local') {
   }
 }
 
-async function handleDetect() {
-  loading.value = true
+async function handleScan() {
+  scanning.value = true
   try {
-    const ok = await conn.autoDetect()
-    if (ok) {
-      localUrl.value = conn.gatewayUrl
-      showToast(`发现网关: ${conn.gatewayUrl}`)
-    } else {
+    // mDNS 优先（原生 Android 秒出；Web 环境直接返回空）
+    const mdns = await conn.discoverViaMdns()
+    if (mdns.length) {
+      discovered.value = mdns
+      return
+    }
+    // 兜底：网段扫描
+    discovered.value = await conn.scanLocalNetwork()
+    if (!discovered.value.length) {
       showToast('未发现本地网关')
     }
   } finally {
-    loading.value = false
+    scanning.value = false
+  }
+}
+
+async function applyGateway(g: DiscoveredGateway) {
+  localUrl.value = g.url
+  const ok = await conn.checkLocalGateway(g.url)
+  if (ok) {
+    conn.setMode('local')
+    showToast('已连接 ' + g.url)
+  } else {
+    showToast('连接失败')
   }
 }
 

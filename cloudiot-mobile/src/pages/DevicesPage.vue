@@ -119,7 +119,7 @@
             
             <!-- 状态开关 -->
             <Switch
-              :model-value="device.status === 'on'"
+              :model-value="device.status === 'online'"
               @update:model-value="(val: boolean) => handleDeviceToggle(device, val)"
               class="scale-75"
             />
@@ -135,14 +135,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import type { Device } from '@/api/device'
 import { getDevices } from '@/api/device'
-import { useConnectionStore } from '@/stores/connection'
 import Switch from '@/components/ui/switch/Switch.vue'
-
-const router = useRouter()
-const conn = useConnectionStore()
 
 const activeFilter = ref('all')
 const loading = ref(false)
@@ -158,8 +153,8 @@ async function fetchDevices() {
       name: d.name || d.id,
       type: d.type || 'unknown',
       location: d.location || '',
-      online: d.online === 1 || d.status === 'online',
-      status: d.online === 1 || d.status === 'online' ? 'on' : 'off',
+      online: d.online === 1 || d.status === 'online' ? 1 : 0,
+      status: d.online === 1 || d.status === 'online' ? 'online' : 'offline',
       favorite: false,
       data: d.data || parseConfig(d.config),
     }))
@@ -213,7 +208,8 @@ function getDeviceIcon(type: string): string {
 }
 
 function handleDeviceToggle(device: Device, value: boolean) {
-  device.status = value ? 'on' : 'off'
+  device.status = value ? 'online' : 'offline'
+  device.online = value ? 1 : 0
 }
 
 function toggleFavorite(device: Device) {

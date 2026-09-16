@@ -6,6 +6,7 @@ export interface Device {
   name: string
   type: string
   status: 'online' | 'offline'
+  favorite?: boolean
   location?: string
   lastUpdate?: string
   data?: Record<string, any>

@@ -6,6 +6,10 @@
         <p class="text-text-secondary mt-2">登录您的账户</p>
       </div>
 
+      <div v-if="isLocalMode" class="mb-4 rounded-xl bg-surface-elevated border border-surface-elevated px-4 py-3 text-sm text-text-secondary">
+        当前为本地网关模式，无需登录即可控制设备。登录仅用于云端远程访问。
+      </div>
+
       <form @submit.prevent="handleLogin" class="space-y-4">
         <div class="bg-surface-card rounded-2xl p-4 space-y-3">
           <div>
@@ -33,13 +37,25 @@
 
         <button
           type="submit"
-          :disabled="loading"
+          :disabled="loading || localLoading"
           class="w-full h-12 bg-brand hover:bg-brand-dark text-surface font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         >
           <span v-if="loading" class="animate-spin w-5 h-5 border-2 border-surface border-t-transparent rounded-full mr-2"></span>
           登录
         </button>
       </form>
+
+      <!-- 本地网关入口 -->
+      <button
+        @click="handleLocalMode"
+        :disabled="loading || localLoading"
+        class="w-full mt-4 h-12 bg-surface-elevated border border-surface-elevated rounded-xl text-text-secondary font-medium text-sm hover:border-brand/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        <span v-if="localLoading" class="animate-spin w-4 h-4 border-2 border-text-muted border-t-transparent rounded-full"></span>
+        <span v-else>📡</span>
+        使用本地网关模式
+      </button>
+      <p class="text-center text-text-muted text-xs mt-2">连接局域网内网关，无需登录</p>
 
       <div class="text-center mt-4">
         <router-link to="/forgot-password" class="text-text-muted text-sm hover:text-brand transition-colors">
@@ -58,14 +74,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useConnectionStore } from '@/stores/connection'
 import { login } from '@/api/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const conn = useConnectionStore()
 const loading = ref(false)
+const localLoading = ref(false)
+const isLocalMode = computed(() => conn.isLocal)
 
 const form = reactive({
   email: '',
@@ -99,6 +119,23 @@ async function handleLogin() {
     showToast(error.message || '登录失败，请检查邮箱和密码')
   } finally {
     loading.value = false
+  }
+}
+
+// 一键进入本地网关模式（免登录）
+async function handleLocalMode() {
+  if (localLoading.value) return
+  localLoading.value = true
+  try {
+    const ok = await conn.switchMode('local')
+    if (ok) {
+      showToast('已连接本地网关')
+      router.replace('/home')
+    } else {
+      showToast('未发现本地网关，请确认与网关连接同一网络')
+    }
+  } finally {
+    localLoading.value = false
   }
 }
 
