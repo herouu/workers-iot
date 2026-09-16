@@ -3,8 +3,9 @@
  */
 import { jsonResponse, jsonError, notFound, forbidden } from '../utils/response'
 
-function getUserId(request: Request): string {
-  return request.headers.get('x-user-id') || ''
+// 获取用户 ID（由认证中间件注入，禁止从请求头读取以防伪造越权）
+function getUserId(userId: string): string {
+  return userId
 }
 
 function extractId(url: string): string {
@@ -13,9 +14,8 @@ function extractId(url: string): string {
 }
 
 // 获取设备历史数据
-export async function getDeviceHistory(request: Request, env: Env): Promise<Response> {
+export async function getDeviceHistory(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const deviceId = extractId(request.url)
     const url = new URL(request.url)
     
@@ -72,10 +72,51 @@ export async function getDeviceHistory(request: Request, env: Env): Promise<Resp
   }
 }
 
-// 获取统计数据
-export async function getStatistics(request: Request, env: Env): Promise<Response> {
+// 获取设备统计信息
+export async function getDeviceStats(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
+    // 路径形如 /devices/:id/stats，取倒数第二段作为设备 ID
+    const segments = new URL(request.url).pathname.split('/').filter(Boolean)
+    const deviceId = segments[segments.length - 2]
+
+    // 检查设备存在与属主权限
+    const device = await env.DB
+      .prepare('SELECT * FROM devices WHERE id = ?')
+      .bind(deviceId)
+      .first()
+
+    if (!device) {
+      return notFound('Device not found')
+    }
+
+    if (device.user_id !== userId) {
+      return forbidden('No permission to access this device')
+    }
+
+    // 事件总数统计
+    const eventStats = await env.DB
+      .prepare('SELECT COUNT(*) as total FROM device_states WHERE device_id = ?')
+      .bind(deviceId)
+      .first()
+
+    return jsonResponse({
+      deviceId,
+      name: device.name,
+      total_events: eventStats?.total || 0,
+      online: !!device.online,
+      last_seen: device.last_seen || null,
+      period: '24h'
+    })
+
+  } catch (err) {
+    console.error('Get device stats error:', err)
+    return jsonError('Failed to get device stats', 500)
+  }
+}
+
+// 获取统计数据
+export async function getStatistics(request: Request, env: Env, userId: string): Promise<Response> {
+  try {
     const url = new URL(request.url)
     
     const period = url.searchParams.get('period') || 'day' // day, week, month

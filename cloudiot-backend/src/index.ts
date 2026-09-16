@@ -12,6 +12,7 @@ import { devicesRoutes } from './routes/devices'
 import { scenesRoutes } from './routes/scenes'
 import { dataRoutes } from './routes/data'
 import { realtimeRoutes } from './routes/realtime'
+import { gatewayRoutes } from './routes/gateway'
 
 // 导入 Durable Objects
 import { DeviceSession } from './durableObjects/DeviceSession'
@@ -58,6 +59,8 @@ app.route('/api/v1/devices', devicesRoutes)
 app.route('/api/v1/scenes', scenesRoutes)
 app.route('/api/v1/data', dataRoutes)
 app.route('/realtime', realtimeRoutes)
+// 网关云同步接口（/api 前缀，不含 /v1，与网关 cloud-sync.ts 契约一致）
+app.route('/api', gatewayRoutes)
 
 // OpenAPI Schema
 const openApiSchema = {

@@ -4,15 +4,14 @@
 import { jsonResponse, jsonError, success, notFound, forbidden } from '../utils/response'
 import { generateDeviceId } from '../utils/password'
 
-// 获取用户 ID
-function getUserId(request: Request): string {
-  return request.headers.get('x-user-id') || ''
+// 获取用户 ID（由认证中间件注入，禁止从请求头读取以防伪造越权）
+function getUserId(userId: string): string {
+  return userId
 }
 
 // 获取设备列表
-export async function getDevices(request: Request, env: Env): Promise<Response> {
+export async function getDevices(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const url = new URL(request.url)
     const room = url.searchParams.get('room')
     const type = url.searchParams.get('type')
@@ -57,9 +56,8 @@ export async function getDevices(request: Request, env: Env): Promise<Response> 
 }
 
 // 获取设备详情
-export async function getDevice(request: Request, env: Env): Promise<Response> {
+export async function getDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const deviceId = extractId(request.url)
     
     const device = await env.DB
@@ -98,9 +96,8 @@ export async function getDevice(request: Request, env: Env): Promise<Response> {
 }
 
 // 创建设备
-export async function createDevice(request: Request, env: Env): Promise<Response> {
+export async function createDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const body = await request.json()
     const { name, type, model, room, icon, mac_address } = body
     
@@ -145,9 +142,8 @@ export async function createDevice(request: Request, env: Env): Promise<Response
 }
 
 // 更新设备
-export async function updateDevice(request: Request, env: Env): Promise<Response> {
+export async function updateDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const deviceId = extractId(request.url)
     const body = await request.json()
     
@@ -204,9 +200,8 @@ export async function updateDevice(request: Request, env: Env): Promise<Response
 }
 
 // 删除设备
-export async function deleteDevice(request: Request, env: Env): Promise<Response> {
+export async function deleteDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const deviceId = extractId(request.url)
     
     const device = await env.DB
@@ -236,10 +231,9 @@ export async function deleteDevice(request: Request, env: Env): Promise<Response
 }
 
 // 控制设备
-export async function controlDevice(request: Request, env: Env): Promise<Response> {
+export async function controlDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
-    const deviceId = extractId(request.url)
+    const deviceId = extractIdByOffset(request.url, 1)
     const body = await request.json()
     const { command, params } = body
     
@@ -277,10 +271,22 @@ export async function controlDevice(request: Request, env: Env): Promise<Respons
       .bind(deviceId, JSON.stringify(newState))
       .run()
     
+    // 写入待下发命令队列（供网关通过 /api/commands/pending 拉取）
+    await env.DB
+      .prepare('INSERT INTO device_commands (id, device_id, command, params, timestamp, status) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(crypto.randomUUID(), deviceId, command, JSON.stringify(params || {}), Date.now(), 'pending')
+      .run()
+    
     // 通过 Durable Object 通知设备
-    const doId = env.DEVICE_SESSION.idFromName(deviceId)
-    const doStub = env.DEVICE_SESSION.get(doId)
-    await doStub.sendCommand({ command, params, timestamp: Date.now() })
+    // 注意：DeviceSession 当前未继承 cloudflare:workers 的 DurableObject，RPC 不可用；
+    // 此处降级为仅写入命令队列（/api/commands/pending），不影响接口返回
+    try {
+      const doId = env.DEVICE_SESSION.idFromName(deviceId)
+      const doStub = env.DEVICE_SESSION.get(doId)
+      await doStub.sendCommand({ command, params, timestamp: Date.now() })
+    } catch (doErr) {
+      console.warn('DeviceSession notify failed, fallback to command queue:', doErr)
+    }
     
     return jsonResponse({
       success: true,
@@ -296,9 +302,8 @@ export async function controlDevice(request: Request, env: Env): Promise<Respons
 }
 
 // 设备配网
-export async function provisionDevice(request: Request, env: Env): Promise<Response> {
+export async function provisionDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const body = await request.json()
     const { mac_address, name, type } = body
     
@@ -345,10 +350,9 @@ export async function provisionDevice(request: Request, env: Env): Promise<Respo
 }
 
 // 获取设备数据
-export async function getDeviceData(request: Request, env: Env): Promise<Response> {
+export async function getDeviceData(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
-    const deviceId = extractId(request.url)
+    const deviceId = extractIdByOffset(request.url, 1)
     const url = new URL(request.url)
     const limit = parseInt(url.searchParams.get('limit') || '100')
     
@@ -397,6 +401,12 @@ export async function getDeviceData(request: Request, env: Env): Promise<Respons
 function extractId(url: string): string {
   const segments = new URL(url).pathname.split('/')
   return segments[segments.length - 1]
+}
+
+// 辅助函数：从 URL 提取倒数第 n 段 ID（用于 /:id/control、/:id/data 等末尾带动作的路径）
+function extractIdByOffset(url: string, offset: number): string {
+  const segments = new URL(url).pathname.split('/').filter(Boolean)
+  return segments[segments.length - 1 - offset]
 }
 
 // 计算新状态

@@ -44,3 +44,5 @@ new_sqlite_classes = [ "DeviceSession", "SceneExecutor", "NotificationHub", "Rea
 # 环境变量
 [vars]
 ENVIRONMENT = "production"
+# 网关云同步静态密钥（开发用；生产环境应改用 `wrangler secret put GATEWAY_API_KEY`）
+GATEWAY_API_KEY = "dev-gateway-key"

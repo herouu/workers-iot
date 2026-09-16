@@ -4,8 +4,9 @@
 import { jsonResponse, jsonError, success, notFound, forbidden } from '../utils/response'
 import { generateSceneId } from '../utils/password'
 
-function getUserId(request: Request): string {
-  return request.headers.get('x-user-id') || ''
+// 获取用户 ID（由认证中间件注入，禁止从请求头读取以防伪造越权）
+function getUserId(userId: string): string {
+  return userId
 }
 
 function extractId(url: string): string {
@@ -14,10 +15,8 @@ function extractId(url: string): string {
 }
 
 // 获取场景列表
-export async function getScenes(request: Request, env: Env): Promise<Response> {
+export async function getScenes(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
-    
     const result = await env.DB
       .prepare('SELECT * FROM scenes WHERE user_id = ? ORDER BY created_at DESC')
       .bind(userId)
@@ -39,9 +38,8 @@ export async function getScenes(request: Request, env: Env): Promise<Response> {
 }
 
 // 获取场景详情
-export async function getScene(request: Request, env: Env): Promise<Response> {
+export async function getScene(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const sceneId = extractId(request.url)
     
     const scene = await env.DB
@@ -71,9 +69,8 @@ export async function getScene(request: Request, env: Env): Promise<Response> {
 }
 
 // 创建场景
-export async function createScene(request: Request, env: Env): Promise<Response> {
+export async function createScene(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const body = await request.json()
     const { name, icon, trigger_config, actions, enabled } = body
     
@@ -115,9 +112,8 @@ export async function createScene(request: Request, env: Env): Promise<Response>
 }
 
 // 更新场景
-export async function updateScene(request: Request, env: Env): Promise<Response> {
+export async function updateScene(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const sceneId = extractId(request.url)
     const body = await request.json()
     
@@ -176,9 +172,8 @@ export async function updateScene(request: Request, env: Env): Promise<Response>
 }
 
 // 删除场景
-export async function deleteScene(request: Request, env: Env): Promise<Response> {
+export async function deleteScene(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const sceneId = extractId(request.url)
     
     const scene = await env.DB
@@ -208,9 +203,8 @@ export async function deleteScene(request: Request, env: Env): Promise<Response>
 }
 
 // 执行场景
-export async function executeScene(request: Request, env: Env): Promise<Response> {
+export async function executeScene(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const userId = getUserId(request)
     const sceneId = extractId(request.url)
     
     const scene = await env.DB
