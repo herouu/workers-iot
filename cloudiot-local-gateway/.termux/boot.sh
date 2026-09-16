@@ -8,6 +8,10 @@ termux-wifi-lock
 # 进入网关目录
 cd ~/cloudiot-local-gateway
 
-# 启动 PM2 网关
-pm2 start ecosystem.config.cjs
+# 幂等启动：已运行则重启，否则首次启动
+if pm2 describe gateway >/dev/null 2>&1; then
+  pm2 restart gateway
+else
+  pm2 start ecosystem.config.cjs
+fi
 pm2 save

@@ -2,22 +2,16 @@ module.exports = {
   apps: [{
     name: 'gateway',
     script: 'src/index.ts',
-    interpreter: 'node',
+    // tsx 直接跑 TS（与 npm run dev 同运行时路径，避免 dist ESM emit 陷阱）
+    // 注意：Termux 下 node_modules/.bin/tsx 是 bash shim，PM2 spawn 可执行
+    interpreter: require('path').join(__dirname, 'node_modules', '.bin', 'tsx'),
+    interpreter_args: ['--env-file=.env'],
     instances: 1,
     autorestart: true,
     watch: false,
     max_memory_restart: '250M',
     env: {
       NODE_ENV: 'production',
-      HTTP_PORT: '8080',
-      MQTT_PORT: '1883',
-      DB_PATH: './data/gateway.db',
-      CLOUD_API: 'https://your-worker.workers.dev',
-      CLOUD_KEY: '',
-      SYNC_INTERVAL: '30',
-      DATA_RETENTION_DAYS: '180',
-      DEVICE_AUTO_REGISTER: 'true',
-      LOG_LEVEL: 'info',
     },
   }],
 };

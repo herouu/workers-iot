@@ -56,7 +56,7 @@ export const cloudSync = {
       });
 
       if (cmdRes.ok) {
-        const { commands } = await cmdRes.json();
+        const { commands } = await cmdRes.json() as { commands?: unknown[] };
         if (commands && Array.isArray(commands)) {
           const { commandDispatcher } = require('./command-dispatcher');
           for (const cmd of commands as any[]) {

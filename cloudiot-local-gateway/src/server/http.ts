@@ -53,23 +53,13 @@ export function createHttpServer() {
 
 export function startHttpServer() {
   const app = createHttpServer();
-
-  // Bun/Node 兼容启动
   const port = config.httpPort;
 
-  // 使用 Bun.serve 或 Node http
-  if (typeof Bun !== 'undefined') {
-    Bun.serve({
-      port,
-      fetch: app.fetch,
-    });
-  } else {
-    // Node.js 模式
-    import('@hono/node-server').then(({ serve }) => {
-      serve({ fetch: app.fetch, port });
-    });
-  }
+  // Node.js 模式（Termux/桌面均走 @hono/node-server）
+  import('@hono/node-server').then(({ serve }) => {
+    serve({ fetch: app.fetch, port });
+    console.log(`[HTTP] server started on port ${port}`);
+  });
 
-  console.log(`[HTTP] server started on port ${port}`);
   return app;
 }
