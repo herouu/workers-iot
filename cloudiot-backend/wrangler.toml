@@ -46,3 +46,5 @@ new_sqlite_classes = [ "DeviceSession", "SceneExecutor", "NotificationHub", "Rea
 ENVIRONMENT = "production"
 # 网关云同步静态密钥（开发用；生产环境应改用 `wrangler secret put GATEWAY_API_KEY`）
 GATEWAY_API_KEY = "dev-gateway-key"
+# JWT_SECRET 用于用户/设备 token 签发，生产必须执行 `wrangler secret put JWT_SECRET` 配置；
+# 本地开发值见 .dev.vars（已 gitignore）

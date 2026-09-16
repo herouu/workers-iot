@@ -17,7 +17,7 @@ type Env = {
  */
 export async function handleForgotPassword(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { email?: string }
     const { email } = body
 
     if (!email) {
@@ -114,7 +114,7 @@ export async function handleVerifyResetToken(request: Request, env: Env): Promis
  */
 export async function handleResetPassword(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { token?: string; email?: string; newPassword?: string }
     const { token, email, newPassword } = body
 
     if (!token || !email || !newPassword) {

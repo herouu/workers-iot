@@ -42,7 +42,7 @@ export class RealtimeHub implements DurableObject {
     
     if (request.method === 'POST' && url.pathname === '/broadcast') {
       // 广播消息给订阅者
-      const body = await request.json()
+      const body = await request.json() as { deviceId: string; event: string; data?: unknown }
       const { deviceId, event, data } = body
       await this.broadcast(deviceId, { event, data, timestamp: Date.now() })
       return new Response(JSON.stringify({ success: true }))

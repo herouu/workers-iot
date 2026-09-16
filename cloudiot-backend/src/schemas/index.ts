@@ -118,8 +118,8 @@ export const DeviceSchema = z.object({
   icon: z.string().optional(),
   mac_address: z.string().nullable().optional(),
   online: z.boolean().openapi({ example: true }),
-  state: z.record(z.any()).optional(),
-  config: z.record(z.any()).optional(),
+  state: z.record(z.string(), z.any()).optional(),
+  config: z.record(z.string(), z.any()).optional(),
   created_at: z.number().optional(),
   updated_at: z.number().optional(),
 })
@@ -218,7 +218,7 @@ export const UpdateDeviceSchema = createRoute({
             name: z.string().optional(),
             room: z.string().optional(),
             icon: z.string().optional(),
-            config: z.record(z.any()).optional(),
+            config: z.record(z.string(), z.any()).optional(),
           }),
         },
       },
@@ -258,7 +258,7 @@ export const ControlDeviceSchema = createRoute({
         'application/json': {
           schema: z.object({
             command: z.string().openapi({ example: 'power' }),
-            params: z.record(z.any()).optional(),
+            params: z.record(z.string(), z.any()).optional(),
           }),
         },
       },
@@ -273,7 +273,7 @@ export const ControlDeviceSchema = createRoute({
             success: z.boolean(),
             deviceId: z.string(),
             command: z.string(),
-            newState: z.record(z.any()),
+            newState: z.record(z.string(), z.any()),
           }),
         },
       },
@@ -288,7 +288,7 @@ export const SceneSchema = z.object({
   name: z.string().openapi({ example: 'Morning Routine' }),
   icon: z.string().optional(),
   enabled: z.boolean().openapi({ example: true }),
-  trigger_config: z.record(z.any()).optional(),
+  trigger_config: z.record(z.string(), z.any()).optional(),
   actions: z.array(z.any()).optional(),
   last_triggered: z.number().nullable().optional(),
   created_at: z.number().optional(),
@@ -305,7 +305,7 @@ export const CreateSceneSchema = createRoute({
           schema: z.object({
             name: z.string().min(1).openapi({ example: 'My Scene' }),
             icon: z.string().optional(),
-            trigger_config: z.record(z.any()).optional(),
+            trigger_config: z.record(z.string(), z.any()).optional(),
             actions: z.array(z.any()).min(1).openapi({ example: [{ type: 'device', deviceId: 'dev_1', action: 'on' }] }),
             enabled: z.boolean().optional(),
           }),
@@ -397,7 +397,7 @@ export const TelemetrySchema = createRoute({
         'application/json': {
           schema: z.object({
             device_id: z.string().openapi({ example: 'dev_abc123' }),
-            data: z.record(z.any()).openapi({ example: { temperature: 25, humidity: 60 } }),
+            data: z.record(z.string(), z.any()).openapi({ example: { temperature: 25, humidity: 60 } }),
             timestamp: z.number().optional(),
           }),
         },
@@ -431,7 +431,7 @@ export const SendCommandSchema = createRoute({
         'application/json': {
           schema: z.object({
             command: z.string().openapi({ example: 'power' }),
-            params: z.record(z.any()).optional(),
+            params: z.record(z.string(), z.any()).optional(),
           }),
         },
       },

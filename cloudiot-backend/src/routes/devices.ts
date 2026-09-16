@@ -10,15 +10,11 @@ import {
   deleteDevice,
   controlDevice,
   provisionDevice,
-  getDeviceData
+  getDeviceData,
+  rotateDeviceSecret
 } from '../handlers/deviceHandler'
+import { handleDeviceAuth } from '../handlers/deviceAuthHandler'
 import { authMiddleware } from '../middleware/auth'
-
-type Env = {
-  DB: D1Database
-  JWT_SECRET: string
-  DEVICE_SESSION: DurableObjectNamespace
-}
 
 // 认证中间件写入的上下文变量
 type Variables = {
@@ -28,16 +24,16 @@ type Variables = {
 
 const devicesRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-// 挂载认证中间件（全部设备接口需登录）
-devicesRoutes.use('*', authMiddleware)
-
-devicesRoutes.get('/', async (c) => getDevices(c.req.raw, c.env as Env, c.get('userId')))
-devicesRoutes.get('/:id', async (c) => getDevice(c.req.raw, c.env as Env, c.get('userId')))
-devicesRoutes.post('/', async (c) => createDevice(c.req.raw, c.env as Env, c.get('userId')))
-devicesRoutes.put('/:id', async (c) => updateDevice(c.req.raw, c.env as Env, c.get('userId')))
-devicesRoutes.delete('/:id', async (c) => deleteDevice(c.req.raw, c.env as Env, c.get('userId')))
-devicesRoutes.post('/:id/control', async (c) => controlDevice(c.req.raw, c.env as Env, c.get('userId')))
-devicesRoutes.post('/provision', async (c) => provisionDevice(c.req.raw, c.env as Env, c.get('userId')))
-devicesRoutes.get('/:id/data', async (c) => getDeviceData(c.req.raw, c.env as Env, c.get('userId')))
+// 设备认证（无需用户登录，设备用 secret 换 token）
+devicesRoutes.post('/auth', async (c) => handleDeviceAuth(c.req.raw, c.env as Env))
+devicesRoutes.get('/', authMiddleware, async (c) => getDevices(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.get('/:id', authMiddleware, async (c) => getDevice(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.post('/', authMiddleware, async (c) => createDevice(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.put('/:id', authMiddleware, async (c) => updateDevice(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.delete('/:id', authMiddleware, async (c) => deleteDevice(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.post('/:id/control', authMiddleware, async (c) => controlDevice(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.post('/provision', authMiddleware, async (c) => provisionDevice(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.post('/:id/rotate-secret', authMiddleware, async (c) => rotateDeviceSecret(c.req.raw, c.env as Env, c.get('userId')))
+devicesRoutes.get('/:id/data', authMiddleware, async (c) => getDeviceData(c.req.raw, c.env as Env, c.get('userId')))
 
 export { devicesRoutes }

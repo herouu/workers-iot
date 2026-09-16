@@ -7,8 +7,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:create": "wrangler d1 create cloudiot-db",
-    "db:migrate": "wrangler d1 execute cloudiot-db --file=migrations/001_initial_schema.sql",
-    "db:dev": "wrangler d1 execute cloudiot-db-dev --local --file=migrations/001_initial_schema.sql"
+    "db:migrate": "powershell -ExecutionPolicy Bypass -File scripts/db-migrate.ps1",
+    "db:dev": "powershell -ExecutionPolicy Bypass -File scripts/db-migrate.ps1 -Local",
+    "secret:jwt": "wrangler secret put JWT_SECRET"
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",

@@ -45,7 +45,7 @@ export async function getScene(request: Request, env: Env, userId: string): Prom
     const scene = await env.DB
       .prepare('SELECT * FROM scenes WHERE id = ?')
       .bind(sceneId)
-      .first()
+      .first<any>()
     
     if (!scene) {
       return notFound('Scene not found')
@@ -71,7 +71,7 @@ export async function getScene(request: Request, env: Env, userId: string): Prom
 // 创建场景
 export async function createScene(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { name?: string; icon?: string; trigger_config?: unknown; actions?: unknown; enabled?: boolean }
     const { name, icon, trigger_config, actions, enabled } = body
     
     if (!name || !trigger_config || !actions) {
@@ -115,12 +115,12 @@ export async function createScene(request: Request, env: Env, userId: string): P
 export async function updateScene(request: Request, env: Env, userId: string): Promise<Response> {
   try {
     const sceneId = extractId(request.url)
-    const body = await request.json()
+    const body = await request.json() as { name?: string; icon?: string; enabled?: boolean; trigger_config?: unknown; actions?: unknown }
     
     const scene = await env.DB
       .prepare('SELECT * FROM scenes WHERE id = ?')
       .bind(sceneId)
-      .first()
+      .first<any>()
     
     if (!scene) {
       return notFound('Scene not found')
@@ -179,7 +179,7 @@ export async function deleteScene(request: Request, env: Env, userId: string): P
     const scene = await env.DB
       .prepare('SELECT * FROM scenes WHERE id = ?')
       .bind(sceneId)
-      .first()
+      .first<any>()
     
     if (!scene) {
       return notFound('Scene not found')
@@ -210,7 +210,7 @@ export async function executeScene(request: Request, env: Env, userId: string): 
     const scene = await env.DB
       .prepare('SELECT * FROM scenes WHERE id = ?')
       .bind(sceneId)
-      .first()
+      .first<any>()
     
     if (!scene) {
       return notFound('Scene not found')
@@ -229,7 +229,7 @@ export async function executeScene(request: Request, env: Env, userId: string): 
     
     // 通过 Durable Object 执行场景
     const doId = env.SCENE_EXECUTOR.idFromName(sceneId)
-    const doStub = env.SCENE_EXECUTOR.get(doId)
+    const doStub: any = env.SCENE_EXECUTOR.get(doId)
     
     const result = await doStub.execute(actions)
     

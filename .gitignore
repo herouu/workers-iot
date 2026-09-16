@@ -39,3 +39,16 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# Playwright / 测试痕迹
+.playwright-mcp/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 杂项截图
+*.demo.png
+
+# Cloudflare 自动生成类型
+worker-configuration.d.ts

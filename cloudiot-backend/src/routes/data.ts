@@ -5,10 +5,6 @@ import { Hono } from 'hono'
 import { getDeviceHistory, getDeviceStats, getStatistics } from '../handlers/dataHandler'
 import { authMiddleware } from '../middleware/auth'
 
-type Env = {
-  DB: D1Database
-}
-
 // 认证中间件写入的上下文变量
 type Variables = {
   userId: string

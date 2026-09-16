@@ -33,3 +33,28 @@ export function generateSceneId(): string {
   const randomPart = crypto.randomUUID().split('-')[0]
   return `scene_${timestamp}_${randomPart}`
 }
+
+// 生成十六进制随机字符串（用于设备密钥 / 盐）
+export function randomHex(bytes: number): string {
+  const arr = new Uint8Array(bytes)
+  crypto.getRandomValues(arr)
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// 设备密钥（32 字节 = 64 hex）与盐（16 字节 = 32 hex）
+export function generateDeviceSecret(): string {
+  return randomHex(32)
+}
+
+export function generateSecretSalt(): string {
+  return randomHex(16)
+}
+
+// 设备密钥哈希：SHA-256(secret + salt)，每个设备独立随机盐
+export async function hashDeviceSecret(secret: string, salt: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(secret + salt)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}

@@ -6,6 +6,7 @@
  */
 import { Hono } from 'hono'
 import { gatewayAuth } from '../middleware/gatewayAuth'
+import { ACK_TIMEOUT_MS } from '../utils/constants'
 
 type Env = {
   DB: D1Database
@@ -90,31 +91,25 @@ gatewayRoutes.get('/commands/pending', async (c) => {
       return c.json({ error: 'gateway_id is required' }, 400)
     }
 
+    // 原子领取 + 超时重投：只领取 pending，或超过 ACK 窗口仍无人回执的 sent
+    // 单条 UPDATE...RETURNING 与设备侧领取互斥，避免并发重复投递
     const result = await c.env.DB
-      .prepare(
-        `SELECT dc.* FROM device_commands dc
-         JOIN devices d ON d.id = dc.device_id
-         WHERE dc.status = 'pending' AND d.gateway_id = ?
-         ORDER BY dc.timestamp ASC`
-      )
-      .bind(gatewayId)
+      .prepare(`
+        UPDATE device_commands
+        SET status = 'sent', executed_at = ?
+        WHERE device_id IN (SELECT id FROM devices WHERE gateway_id = ?)
+          AND (status = 'pending' OR (status = 'sent' AND executed_at < ?))
+        RETURNING id, device_id, command, params, timestamp
+      `)
+      .bind(Date.now(), gatewayId, Date.now() - ACK_TIMEOUT_MS)
       .all()
 
-    const commands: any[] = []
-
-    for (const cmd of result.results as any[]) {
-      await c.env.DB
-        .prepare('UPDATE device_commands SET status = ? WHERE id = ?')
-        .bind('sent', cmd.id)
-        .run()
-
-      commands.push({
-        id: cmd.id,
-        device_id: cmd.device_id,
-        command: cmd.command,
-        params: safeParse(cmd.params)
-      })
-    }
+    const commands = (result.results as any[]).map((cmd) => ({
+      id: cmd.id,
+      device_id: cmd.device_id,
+      command: cmd.command,
+      params: safeParse(cmd.params)
+    }))
 
     return c.json({ commands })
 

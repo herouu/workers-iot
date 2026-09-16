@@ -16,7 +16,7 @@ export interface TokenPayload {
 
 export async function generateAccessToken(payload: TokenPayload, secret: string): Promise<string> {
   const key = new TextEncoder().encode(secret)
-  const token = await new jose.SignJWT(payload)
+  const token = await new jose.SignJWT({ ...payload } as jose.JWTPayload)
     .setProtectedHeader({ alg: ALGORITHM })
     .setIssuedAt()
     .setExpirationTime(ACCESS_TOKEN_EXPIRY)
@@ -24,7 +24,7 @@ export async function generateAccessToken(payload: TokenPayload, secret: string)
   return token
 }
 
-export async function generateRefreshToken(payload: TokenPayload, secret: string): Promise<string> {
+export async function generateRefreshToken(payload: Omit<TokenPayload, 'type'>, secret: string): Promise<string> {
   const key = new TextEncoder().encode(secret)
   const token = await new jose.SignJWT({ ...payload, type: 'refresh' })
     .setProtectedHeader({ alg: ALGORITHM })
@@ -43,6 +43,18 @@ export async function verifyToken(token: string, secret: string): Promise<TokenP
     console.error('Token verification failed:', err)
     return null
   }
+}
+
+// 设备认证 token：sub=device_id，role=device，有效期 1 小时
+export async function generateDeviceToken(deviceId: string, secret: string): Promise<string> {
+  const key = new TextEncoder().encode(secret)
+  const token = await new jose.SignJWT({ role: 'device', type: 'device' })
+    .setProtectedHeader({ alg: ALGORITHM })
+    .setSubject(deviceId)
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(key)
+  return token
 }
 
 export async function generateTokenPair(user: { id: string; email: string; name?: string }, secret: string) {

@@ -2,7 +2,7 @@
  * 设备处理器
  */
 import { jsonResponse, jsonError, success, notFound, forbidden } from '../utils/response'
-import { generateDeviceId } from '../utils/password'
+import { generateDeviceId, generateDeviceSecret, generateSecretSalt, hashDeviceSecret } from '../utils/password'
 
 // 获取用户 ID（由认证中间件注入，禁止从请求头读取以防伪造越权）
 function getUserId(userId: string): string {
@@ -63,7 +63,7 @@ export async function getDevice(request: Request, env: Env, userId: string): Pro
     const device = await env.DB
       .prepare('SELECT * FROM devices WHERE id = ?')
       .bind(deviceId)
-      .first()
+      .first<any>()
     
     if (!device) {
       return notFound('Device not found')
@@ -75,7 +75,7 @@ export async function getDevice(request: Request, env: Env, userId: string): Pro
       const share = await env.DB
         .prepare('SELECT * FROM device_shares WHERE device_id = ? AND shared_with = ?')
         .bind(deviceId, userId)
-        .first()
+        .first<any>()
       
       if (!share) {
         return forbidden('No permission to access this device')
@@ -98,7 +98,7 @@ export async function getDevice(request: Request, env: Env, userId: string): Pro
 // 创建设备
 export async function createDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { name?: string; type?: string; model?: string; room?: string; icon?: string; mac_address?: string }
     const { name, type, model, room, icon, mac_address } = body
     
     if (!name || !type) {
@@ -145,13 +145,13 @@ export async function createDevice(request: Request, env: Env, userId: string): 
 export async function updateDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
     const deviceId = extractId(request.url)
-    const body = await request.json()
+    const body = await request.json() as { name?: string; room?: string; icon?: string; config?: unknown }
     
     // 检查设备存在和权限
     const device = await env.DB
       .prepare('SELECT * FROM devices WHERE id = ?')
       .bind(deviceId)
-      .first()
+      .first<any>()
     
     if (!device) {
       return notFound('Device not found')
@@ -207,7 +207,7 @@ export async function deleteDevice(request: Request, env: Env, userId: string): 
     const device = await env.DB
       .prepare('SELECT * FROM devices WHERE id = ?')
       .bind(deviceId)
-      .first()
+      .first<any>()
     
     if (!device) {
       return notFound('Device not found')
@@ -234,7 +234,7 @@ export async function deleteDevice(request: Request, env: Env, userId: string): 
 export async function controlDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
     const deviceId = extractIdByOffset(request.url, 1)
-    const body = await request.json()
+    const body = await request.json() as { command?: string; params?: unknown }
     const { command, params } = body
     
     if (!command) {
@@ -245,7 +245,7 @@ export async function controlDevice(request: Request, env: Env, userId: string):
     const device = await env.DB
       .prepare('SELECT * FROM devices WHERE id = ?')
       .bind(deviceId)
-      .first()
+      .first<any>()
     
     if (!device) {
       return notFound('Device not found')
@@ -282,7 +282,7 @@ export async function controlDevice(request: Request, env: Env, userId: string):
     // 此处降级为仅写入命令队列（/api/commands/pending），不影响接口返回
     try {
       const doId = env.DEVICE_SESSION.idFromName(deviceId)
-      const doStub = env.DEVICE_SESSION.get(doId)
+      const doStub: any = env.DEVICE_SESSION.get(doId)
       await doStub.sendCommand({ command, params, timestamp: Date.now() })
     } catch (doErr) {
       console.warn('DeviceSession notify failed, fallback to command queue:', doErr)
@@ -304,7 +304,7 @@ export async function controlDevice(request: Request, env: Env, userId: string):
 // 设备配网
 export async function provisionDevice(request: Request, env: Env, userId: string): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { mac_address?: string; name?: string; type?: string }
     const { mac_address, name, type } = body
     
     if (!mac_address) {
@@ -315,7 +315,7 @@ export async function provisionDevice(request: Request, env: Env, userId: string
     const existing = await env.DB
       .prepare('SELECT * FROM devices WHERE mac_address = ?')
       .bind(mac_address)
-      .first()
+      .first<any>()
     
     if (existing) {
       // 设备已存在，关联到当前用户
@@ -325,22 +325,26 @@ export async function provisionDevice(request: Request, env: Env, userId: string
       return jsonResponse({ device: existing, isNew: false })
     }
     
-    // 创建设备
+    // 创建新设备，同时发放设备密钥（仅本次返回明文，之后不可再取）
     const deviceId = generateDeviceId()
+    const secret = generateDeviceSecret()
+    const secretSalt = generateSecretSalt()
+    const secretHash = await hashDeviceSecret(secret, secretSalt)
     await env.DB
       .prepare(`
-        INSERT INTO devices (id, user_id, name, type, mac_address, online, state)
-        VALUES (?, ?, ?, ?, ?, 1, '{}')
+        INSERT INTO devices (id, user_id, name, type, mac_address, online, state, secret_hash, secret_salt)
+        VALUES (?, ?, ?, ?, ?, 1, '{}', ?, ?)
       `)
-      .bind(deviceId, userId, name || 'New Device', type || 'generic', mac_address)
+      .bind(deviceId, userId, name || 'New Device', type || 'generic', mac_address, secretHash, secretSalt)
       .run()
-    
+
     return jsonResponse({
       id: deviceId,
       name: name || 'New Device',
       type: type || 'generic',
       mac_address,
-      online: true
+      online: true,
+      secret
     }, 201)
     
   } catch (err) {
@@ -359,7 +363,7 @@ export async function getDeviceData(request: Request, env: Env, userId: string):
     const device = await env.DB
       .prepare('SELECT * FROM devices WHERE id = ?')
       .bind(deviceId)
-      .first()
+      .first<any>()
     
     if (!device) {
       return notFound('Device not found')
@@ -407,6 +411,40 @@ function extractId(url: string): string {
 function extractIdByOffset(url: string, offset: number): string {
   const segments = new URL(url).pathname.split('/').filter(Boolean)
   return segments[segments.length - 1 - offset]
+}
+
+// 轮换设备密钥：旧设备补发 secret，明文仅本次返回一次
+export async function rotateDeviceSecret(request: Request, env: Env, userId: string): Promise<Response> {
+  try {
+    const deviceId = extractIdByOffset(request.url, 1)
+
+    const device = await env.DB
+      .prepare('SELECT id, user_id FROM devices WHERE id = ?')
+      .bind(deviceId)
+      .first<any>()
+
+    if (!device) {
+      return notFound('Device not found')
+    }
+
+    if (device.user_id !== userId) {
+      return forbidden('No permission to rotate this device secret')
+    }
+
+    const secret = generateDeviceSecret()
+    const secretSalt = generateSecretSalt()
+    const secretHash = await hashDeviceSecret(secret, secretSalt)
+
+    await env.DB
+      .prepare('UPDATE devices SET secret_hash = ?, secret_salt = ?, updated_at = ? WHERE id = ?')
+      .bind(secretHash, secretSalt, Date.now(), deviceId)
+      .run()
+
+    return jsonResponse({ success: true, deviceId, secret })
+  } catch (err) {
+    console.error('Rotate device secret error:', err)
+    return jsonError('Failed to rotate device secret', 500)
+  }
 }
 
 // 计算新状态

@@ -7,12 +7,6 @@ import { handleForgotPassword, handleVerifyResetToken, handleResetPassword } fro
 import { authMiddleware } from '../middleware/auth'
 import { jsonResponse, notFound } from '../utils/response'
 
-type Env = {
-  DB: D1Database
-  JWT_SECRET: string
-  CACHE: KVNamespace
-}
-
 // 认证中间件写入的上下文变量
 type Variables = {
   userId: string

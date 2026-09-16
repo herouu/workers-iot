@@ -12,12 +12,6 @@ import {
 } from '../handlers/sceneHandler'
 import { authMiddleware } from '../middleware/auth'
 
-type Env = {
-  DB: D1Database
-  JWT_SECRET: string
-  SCENE_EXECUTOR: DurableObjectNamespace
-}
-
 // 认证中间件写入的上下文变量
 type Variables = {
   userId: string

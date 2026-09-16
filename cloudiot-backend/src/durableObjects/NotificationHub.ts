@@ -16,7 +16,7 @@ export class NotificationHub implements DurableObject {
 
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) return
-    const queue = await this.state.storage.get('queue')
+    const queue = await this.state.storage.get<any[]>('queue')
     if (queue) {
       this.notificationQueue = queue
     }

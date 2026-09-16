@@ -7,7 +7,7 @@ import { generateTokenPair, verifyToken } from '../utils/jwt'
 
 export async function handleRegister(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { email?: string; password?: string; name?: string }
     const { email, password, name } = body
     
     // 验证必填字段
@@ -68,7 +68,7 @@ export async function handleRegister(request: Request, env: Env): Promise<Respon
 
 export async function handleLogin(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { email?: string; password?: string }
     const { email, password } = body
     
     if (!email || !password) {
@@ -79,7 +79,7 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
     const user = await env.DB
       .prepare('SELECT * FROM users WHERE email = ?')
       .bind(email)
-      .first()
+      .first<any>()
     
     if (!user) {
       return unauthorized('Invalid email or password')
@@ -115,7 +115,7 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
 
 export async function handleRefresh(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { refreshToken?: string }
     const { refreshToken } = body
     
     if (!refreshToken) {
@@ -138,7 +138,7 @@ export async function handleRefresh(request: Request, env: Env): Promise<Respons
     const user = await env.DB
       .prepare('SELECT * FROM users WHERE id = ?')
       .bind(payload.sub)
-      .first()
+      .first<any>()
     
     if (!user) {
       return unauthorized('User not found')
@@ -163,7 +163,7 @@ export async function handleRefresh(request: Request, env: Env): Promise<Respons
 
 export async function handleLogout(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json()
+    const body = await request.json() as { refreshToken?: string }
     const { refreshToken } = body
     
     if (refreshToken) {
