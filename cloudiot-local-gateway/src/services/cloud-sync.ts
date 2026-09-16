@@ -58,9 +58,10 @@ export const cloudSync = {
       if (cmdRes.ok) {
         const { commands } = await cmdRes.json();
         if (commands && Array.isArray(commands)) {
-          const { commandModel } = require('../models/command');
-          for (const cmd of commands) {
-            commandModel.insert({
+          const { commandDispatcher } = require('./command-dispatcher');
+          for (const cmd of commands as any[]) {
+            // 走命令分发器：MQTT 设备即时投递，HTTP 设备 pending 待轮询
+            commandDispatcher.insert({
               device_id: cmd.device_id,
               command: cmd.command,
               params: cmd.params,

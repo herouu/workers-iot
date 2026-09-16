@@ -17,6 +17,21 @@ ruleRoutes.get('/', (c) => {
   });
 });
 
+// 获取规则详情
+ruleRoutes.get('/:id', (c) => {
+  const id = c.req.param('id');
+  const rule = ruleModel.findById(id);
+  if (!rule) return c.json({ error: 'Rule not found' }, 404);
+
+  return c.json({
+    rule: {
+      ...rule,
+      condition: JSON.parse(rule.condition),
+      action: JSON.parse(rule.action),
+    },
+  });
+});
+
 // 创建规则
 ruleRoutes.post('/', async (c) => {
   const body = await c.req.json();
