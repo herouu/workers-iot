@@ -17,4 +17,16 @@ export const config = {
   logLevel: process.env.LOG_LEVEL || 'info',
   // 默认按主机名生成，冷启动保持稳定（旧版 Date.now() 每次重启漂移）
   gatewayId: process.env.GATEWAY_ID || `gateway-${os.hostname()}`,
+
+  // ===== DNS-SD / mDNS 服务发现配置 =====
+  // 是否启用 mDNS 服务广播
+  mdnsEnabled: process.env.MDNS_ENABLED !== 'false',
+  // mDNS 服务名前缀（最终显示为 "IoT Gateway (<gatewayId>)"）
+  mdnsServiceName: process.env.MDNS_SERVICE_NAME || 'IoT Gateway',
+  // 网络接口名绑定（如 wlan0/eth0），留空则自动选取第一个非回环接口
+  mdnsInterface: process.env.MDNS_INTERFACE || '',
+  // DNS-SD TXT 服务类型标识（客户端按此过滤）
+  mdnsServiceType: process.env.MDNS_SERVICE_TYPE || 'iot-gateway',
+  // 是否同时广播 MQTT 独立服务 (_mqtt._tcp)
+  mdnsAdvertiseMqtt: process.env.MDNS_ADVERTISE_MQTT !== 'false',
 };

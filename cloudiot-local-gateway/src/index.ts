@@ -53,11 +53,12 @@ async function main() {
     console.log('[sync] cloud sync disabled (no API key)');
   }
 
-  console.log('========================================');
-  console.log('  Gateway ready');
-  console.log(`  HTTP:  http://0.0.0.0:${config.httpPort}`);
-  console.log(`  MQTT:  mqtt://0.0.0.0:${config.mqttPort}`);
-  console.log('========================================');
+   console.log('========================================');
+   console.log('  Gateway ready');
+   console.log(`  HTTP:  http://0.0.0.0:${config.httpPort}`);
+   console.log(`  MQTT:  mqtt://0.0.0.0:${config.mqttPort}`);
+   console.log(`  mDNS:  ${config.mdnsEnabled ? 'enabled' : 'disabled'} (${config.mdnsServiceType})`);
+   console.log('========================================');
 }
 
 // 优雅关闭
