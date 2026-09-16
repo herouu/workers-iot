@@ -1,7 +1,7 @@
 // 本地 mDNS 网关发现插件封装（原生侧插件名固定为 LocalMdns，仅 Android 可用）
 import { Capacitor, registerPlugin } from '@capacitor/core'
 
-// 单个 mDNS 服务描述（对应原生 serviceFound 事件 payload）
+// 单个 DNS-SD 服务描述（对应原生 serviceFound 事件 payload）
 export interface MdnsServiceInfo {
   name: string
   host: string
@@ -9,7 +9,27 @@ export interface MdnsServiceInfo {
   serviceType: string
   gatewayId?: string
   mqttPort?: number
+  // 增强 TXT 记录（RFC 6763）
+  proto?: string      // "http" | "mqtt"
+  api?: string        // API 版本路径，如 "/api/v1"
+  path?: string       // HTTP 根路径
+  url?: string        // 完整 URL（MQTT 服务使用）
+  transport?: string  // 传输协议：tcp
+  hostname?: string   // 广播方主机名
+  version?: string    // 服务版本
   txt?: Record<string, string>
+}
+
+// 聚合后的网关信息（合并 HTTP + MQTT 两个服务）
+export interface GatewayInfo {
+  gatewayId: string
+  name: string
+  httpUrl: string
+  mqttUrl: string
+  mqttPort: number
+  host: string
+  version: string
+  proto: string
 }
 
 // 发现过程中的错误信息（对应原生 discoveryError 事件 payload）
@@ -71,7 +91,7 @@ export async function getNativeLocalIps(): Promise<string[]> {
 export async function scanGatewaysMdns(timeoutMs = 4000): Promise<MdnsServiceInfo[]> {
   if (!isNativeMdnsAvailable()) return []
 
-  // 按服务名去重
+  // 按服务名去重（HTTP 与 MQTT 独立广播，各自有唯一服务名）
   const services = new Map<string, MdnsServiceInfo>()
   const handles: MdnsListenerHandle[] = []
 
@@ -117,6 +137,60 @@ export async function scanGatewaysMdns(timeoutMs = 4000): Promise<MdnsServiceInf
   }
 
   return Array.from(services.values())
+}
+
+/**
+ * 将扫描到的多服务按 gatewayId 聚合成网关信息
+ * 同一个网关会广播 HTTP + MQTT 两个服务，需合并为一条
+ */
+export function aggregateGatewayServices(services: MdnsServiceInfo[]): GatewayInfo[] {
+  const gateways = new Map<string, Partial<GatewayInfo>>()
+
+  for (const svc of services) {
+    const gatewayId = svc.gatewayId || svc.txt?.['gateway_id'] || svc.name
+    const existing = gateways.get(gatewayId) || { gatewayId }
+
+    if (svc.proto === 'mqtt' || svc.serviceType?.includes('mqtt')) {
+      // MQTT 独立服务
+      existing.mqttUrl = svc.url || `mqtt://${svc.host}:${svc.port}`
+      existing.mqttPort = svc.port
+    } else {
+      // HTTP 主服务
+      existing.httpUrl = svc.host ? `http://${svc.host}:${svc.port}` : undefined
+      existing.name = svc.name
+      existing.host = svc.host
+      existing.version = svc.version || svc.txt?.['version'] || ''
+      existing.proto = svc.proto || svc.txt?.['proto'] || 'http'
+      // 兼容旧版：从 HTTP 服务 TXT 读取 mqtt_port
+      if (!existing.mqttPort && svc.mqttPort) {
+        existing.mqttPort = svc.mqttPort
+      }
+      if (!existing.mqttUrl && svc.txt?.['mqtt_url']) {
+        existing.mqttUrl = svc.txt['mqtt_url']
+      }
+    }
+
+    // 若只有 MQTT 服务，补全 httpUrl
+    if (!existing.httpUrl && existing.host && svc.txt?.['port']) {
+      existing.httpUrl = `http://${existing.host}:${svc.txt['port']}`
+    }
+
+    gateways.set(gatewayId, existing)
+  }
+
+  // 过滤不完整条目（必须有 httpUrl 才算有效网关）
+  return Array.from(gateways.values())
+    .filter(g => g.httpUrl)
+    .map(g => ({
+      gatewayId: g.gatewayId!,
+      name: g.name || g.gatewayId!,
+      httpUrl: g.httpUrl!,
+      mqttUrl: g.mqttUrl || `mqtt://${g.host}:${g.mqttPort || 1883}`,
+      mqttPort: g.mqttPort || 1883,
+      host: g.host || '',
+      version: g.version || '',
+      proto: g.proto || 'http',
+    }))
 }
 
 // 将 mDNS 服务转换为可直接访问的 HTTP base URL

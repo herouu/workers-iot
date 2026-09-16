@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { CapacitorHttp } from '@capacitor/core'
-import { scanGatewaysMdns, mdnsServiceToUrl, isNativeMdnsAvailable, getNativeLocalIps } from '../plugins/localMdns'
+import { scanGatewaysMdns, isNativeMdnsAvailable, getNativeLocalIps, aggregateGatewayServices } from '../plugins/localMdns'
 
 export type ConnectionMode = 'cloud' | 'local'
 
@@ -211,14 +211,16 @@ export const useConnectionStore = defineStore('connection', () => {
     return [...new Map(found.map((g) => [g.url, g])).values()]
   }
 
-  // 通过 mDNS 发现局域网网关（仅原生 Android 可用），失败返回空数组
+  // 通过 DNS-SD/mDNS 发现局域网网关（仅原生 Android 可用）
+  // 返回聚合后的网关列表（HTTP + MQTT 多服务合并为一条）
   async function discoverViaMdns(): Promise<DiscoveredGateway[]> {
     if (!isNativeMdnsAvailable()) return []
     try {
       const services = await scanGatewaysMdns()
-      return services.map((s) => ({
-        url: mdnsServiceToUrl(s),
-        gatewayId: s.gatewayId ?? null,
+      const gateways = aggregateGatewayServices(services)
+      return gateways.map((g) => ({
+        url: g.httpUrl,
+        gatewayId: g.gatewayId ?? null,
       }))
     } catch {
       // 静默降级：调用方自行回退到网段扫描

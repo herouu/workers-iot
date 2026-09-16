@@ -43,11 +43,15 @@ public class LocalMdnsPlugin extends Plugin {
 
     private static final String TAG = "LocalMdns";
 
-    /** 服务发现类型（末尾的点是 DNS-SD 规范要求） */
-    private static final String SERVICE_TYPE = "_http._tcp.";
+    /** HTTP 服务发现类型（DNS-SD 规范末尾点） */
+    private static final String SERVICE_TYPE_HTTP = "_http._tcp.";
+
+    /** MQTT 服务发现类型（独立广播） */
+    private static final String SERVICE_TYPE_MQTT = "_mqtt._tcp.";
 
     /** 归一化后用于比较的类型（去掉末尾点） */
-    private static final String SERVICE_TYPE_NORMALIZED = "_http._tcp";
+    private static final String SERVICE_TYPE_HTTP_NORMALIZED = "_http._tcp";
+    private static final String SERVICE_TYPE_MQTT_NORMALIZED = "_mqtt._tcp";
 
     /** TXT 记录中标识网关的 type 值 */
     private static final String TXT_TYPE_IOT_GATEWAY = "iot-gateway";
@@ -141,8 +145,14 @@ public class LocalMdnsPlugin extends Plugin {
         acquireMulticastLock();
 
         try {
-            nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, getDiscoveryListener());
-            Log.i(TAG, "开始发现 mDNS 服务: " + SERVICE_TYPE);
+            // 同时发现 HTTP 与 MQTT 两种服务（DNS-SD 最佳实践：每种协议独立注册）
+            nsdManager.discoverServices(SERVICE_TYPE_HTTP, NsdManager.PROTOCOL_DNS_SD, getDiscoveryListener());
+            Log.i(TAG, "开始发现 mDNS 服务: " + SERVICE_TYPE_HTTP);
+
+            // 独立 DiscoveryListener 用于 MQTT 类型
+            nsdManager.discoverServices(SERVICE_TYPE_MQTT, NsdManager.PROTOCOL_DNS_SD, getMqttDiscoveryListener());
+            Log.i(TAG, "开始发现 mDNS 服务: " + SERVICE_TYPE_MQTT);
+
             call.resolve();
         } catch (Throwable t) {
             Log.e(TAG, "启动 mDNS 发现失败", t);
@@ -261,7 +271,85 @@ public class LocalMdnsPlugin extends Plugin {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         normalized = normalized.trim();
-        return SERVICE_TYPE_NORMALIZED.equalsIgnoreCase(normalized);
+        return SERVICE_TYPE_HTTP_NORMALIZED.equalsIgnoreCase(normalized)
+                || SERVICE_TYPE_MQTT_NORMALIZED.equalsIgnoreCase(normalized);
+    }
+
+    /**
+     * 判断是否为 MQTT 独立服务（用于区分事件 payload 中的 serviceType）
+     */
+    private boolean isMqttServiceType(String serviceType) {
+        if (serviceType == null) {
+            return false;
+        }
+        String normalized = serviceType.trim();
+        while (normalized.endsWith(".")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return SERVICE_TYPE_MQTT_NORMALIZED.equalsIgnoreCase(normalized);
+    }
+
+    /**
+     * MQTT 服务的 DiscoveryListener（与 HTTP 独立，避免类型混淆）
+     */
+    private NsdManager.DiscoveryListener mqttDiscoveryListener;
+
+    private NsdManager.DiscoveryListener getMqttDiscoveryListener() {
+        if (mqttDiscoveryListener == null) {
+            mqttDiscoveryListener = new NsdManager.DiscoveryListener() {
+
+                @Override
+                public void onDiscoveryStarted(String regType) {
+                    Log.i(TAG, "MQTT 发现已启动: " + regType);
+                }
+
+                @Override
+                public void onStartDiscoveryFailed(String serviceType, int errorCode) {
+                    Log.e(TAG, "MQTT onStartDiscoveryFailed: " + serviceType + " code=" + errorCode);
+                    emitError("START_FAILED", "MQTT errorCode=" + errorCode);
+                }
+
+                @Override
+                public void onDiscoveryStopped(String serviceType) {
+                    Log.i(TAG, "MQTT 发现已停止: " + serviceType);
+                }
+
+                @Override
+                public void onStopDiscoveryFailed(String serviceType, int errorCode) {
+                    Log.e(TAG, "MQTT onStopDiscoveryFailed: " + serviceType + " code=" + errorCode);
+                    emitError("STOP_FAILED", "MQTT errorCode=" + errorCode);
+                }
+
+                @Override
+                public void onServiceFound(NsdServiceInfo serviceInfo) {
+                    if (!isMqttServiceType(serviceInfo.getServiceType())) {
+                        return;
+                    }
+                    enqueueResolve(serviceInfo);
+                }
+
+                @Override
+                public void onServiceLost(NsdServiceInfo serviceInfo) {
+                    String name = serviceInfo.getServiceName();
+                    if (name == null) {
+                        return;
+                    }
+                    boolean removed;
+                    synchronized (seen) {
+                        removed = seen.remove(name) != null;
+                    }
+                    synchronized (resolveQueue) {
+                        resolveQueue.remove(serviceInfo);
+                    }
+                    if (removed) {
+                        JSObject payload = new JSObject();
+                        payload.put("name", name);
+                        emit("serviceLost", payload);
+                    }
+                }
+            };
+        }
+        return mqttDiscoveryListener;
     }
 
     // ------------------------------------------------------------------
@@ -374,6 +462,13 @@ public class LocalMdnsPlugin extends Plugin {
         JSObject txt = new JSObject();
         String gatewayId = "";
         Integer mqttPort = null;
+        String proto = "";
+        String api = "";
+        String path = "";
+        String url = "";
+        String transport = "";
+        String hostname = "";
+        String version = "";
         Map<String, byte[]> attributes = info.getAttributes();
         if (attributes != null) {
             for (Map.Entry<String, byte[]> entry : attributes.entrySet()) {
@@ -389,11 +484,25 @@ public class LocalMdnsPlugin extends Plugin {
                     } catch (NumberFormatException e) {
                         mqttPort = null;
                     }
+                } else if ("proto".equals(key)) {
+                    proto = value;
+                } else if ("api".equals(key)) {
+                    api = value;
+                } else if ("path".equals(key)) {
+                    path = value;
+                } else if ("url".equals(key)) {
+                    url = value;
+                } else if ("transport".equals(key)) {
+                    transport = value;
+                } else if ("hostname".equals(key)) {
+                    hostname = value;
+                } else if ("version".equals(key)) {
+                    version = value;
                 }
             }
         }
 
-        // 过滤：_http._tcp 是公共类型，必须确认是 IoT 网关
+        // 过滤：_http._tcp / _mqtt._tcp 是公共类型，必须确认是 IoT 网关
         String txtType = txt.optString("type", "");
         boolean isGateway = TXT_TYPE_IOT_GATEWAY.equals(txtType) || name.startsWith(GATEWAY_NAME_PREFIX);
         if (!isGateway) {
@@ -413,12 +522,23 @@ public class LocalMdnsPlugin extends Plugin {
             return;
         }
 
+        // 判断是否为 MQTT 独立服务
+        boolean isMqtt = isMqttServiceType(info.getServiceType());
+        String serviceType = isMqtt ? SERVICE_TYPE_MQTT : SERVICE_TYPE_HTTP;
+
         JSObject payload = new JSObject();
         payload.put("name", name);
         payload.put("host", host);
         payload.put("port", port);
-        payload.put("serviceType", SERVICE_TYPE);
+        payload.put("serviceType", serviceType);
         payload.put("gatewayId", gatewayId);
+        payload.put("proto", proto);
+        if (!api.isEmpty()) payload.put("api", api);
+        if (!path.isEmpty()) payload.put("path", path);
+        if (!url.isEmpty()) payload.put("url", url);
+        if (!transport.isEmpty()) payload.put("transport", transport);
+        if (!hostname.isEmpty()) payload.put("hostname", hostname);
+        if (!version.isEmpty()) payload.put("version", version);
         if (mqttPort != null) {
             payload.put("mqttPort", mqttPort.intValue());
         }
@@ -465,14 +585,24 @@ public class LocalMdnsPlugin extends Plugin {
 
     private void stopDiscoveryInternal() {
         NsdManager manager = nsdManager;
-        NsdManager.DiscoveryListener listener = discoveryListener;
-        if (manager != null && listener != null) {
-            try {
-                manager.stopServiceDiscovery(listener);
-            } catch (Throwable t) {
-                // 旧设备上对未注册的 listener 会抛 IllegalArgumentException
-                Log.w(TAG, "停止发现失败", t);
-                emitError("STOP_FAILED", String.valueOf(t.getMessage()));
+        if (manager != null) {
+            // 停止 HTTP 服务发现
+            if (discoveryListener != null) {
+                try {
+                    manager.stopServiceDiscovery(discoveryListener);
+                } catch (Throwable t) {
+                    Log.w(TAG, "停止 HTTP 发现失败", t);
+                    emitError("STOP_FAILED", String.valueOf(t.getMessage()));
+                }
+            }
+            // 停止 MQTT 服务发现
+            if (mqttDiscoveryListener != null) {
+                try {
+                    manager.stopServiceDiscovery(mqttDiscoveryListener);
+                } catch (Throwable t) {
+                    Log.w(TAG, "停止 MQTT 发现失败", t);
+                    emitError("STOP_FAILED", "MQTT: " + String.valueOf(t.getMessage()));
+                }
             }
         }
 
