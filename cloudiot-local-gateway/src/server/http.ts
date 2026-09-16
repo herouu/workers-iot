@@ -7,6 +7,7 @@ import { telemetryRoutes } from '../routes/telemetry';
 import { commandRoutes } from '../routes/commands';
 import { ruleRoutes } from '../routes/rules';
 import { adminRoutes } from '../routes/admin';
+import { adminPageHtml } from '../pages/admin-page';
 
 export function createHttpServer() {
   const app = new Hono();
@@ -44,9 +45,13 @@ export function createHttpServer() {
         commands: '/api/commands',
         rules: '/api/rules',
         admin: '/api/admin',
+        admin_page: '/admin',
       },
     });
   });
+
+  // 内置管理页面
+  app.get('/admin', (c) => c.html(adminPageHtml));
 
   return app;
 }
