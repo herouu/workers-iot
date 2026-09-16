@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">网关mDNS广播</string>
+    <string name="title">网关 mDNS 广播</string>
+    <string name="subtitle">持有 MulticastLock + NsdManager 注册，由系统层应答 mDNS 查询（无需 root）</string>
+
+    <string name="label_status">广播状态</string>
+    <string name="label_ip">本机 IP</string>
+    <string name="label_gateway_id">gateway_id</string>
+    <string name="label_services">已注册服务</string>
+
+    <string name="hint_http_port">HTTP 端口（默认 8080）</string>
+    <string name="hint_mqtt_port">MQTT 端口（默认 1883）</string>
+
+    <string name="btn_start">启动广播</string>
+    <string name="btn_stop">停止广播</string>
+    <string name="switch_auto_start">开机自启</string>
+
+    <string name="hint_battery">提示：请在系统设置中允许本应用自启动，并关闭电池优化，否则后台服务可能被系统杀死，导致网关无法被局域网发现。</string>
+</resources>

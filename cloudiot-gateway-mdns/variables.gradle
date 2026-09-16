@@ -1,0 +1,8 @@
+// 各模块共享的版本号（与 cloudiot-mobile 对齐）
+ext {
+    minSdkVersion = 23
+    compileSdkVersion = 35
+    targetSdkVersion = 35
+    androidxAppCompatVersion = '1.7.0'
+    androidxCoreVersion = '1.15.0'
+}

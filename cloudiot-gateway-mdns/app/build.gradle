@@ -1,0 +1,47 @@
+// 应用模块：极简网关 mDNS 广播器
+apply plugin: 'com.android.application'
+
+android {
+    namespace "com.cloudiot.gwmdns"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        applicationId "com.cloudiot.gwmdns"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // 仅 AndroidX，无第三方依赖
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+}
+
+// Kotlin stdlib 版本冲突修复
+// 现象：CheckDuplicateClasses 报 kotlin.internal.jdk7.* / jdk8.* 重复
+// 原因：appcompat/core 传递引入 kotlin-stdlib 1.8.22，
+//       另有依赖引入 kotlin-stdlib-jdk7 / jdk8 1.6.21，两者含同名类。
+// 说明：Kotlin 1.8+ 起 jdk7/jdk8 已合并进 kotlin-stdlib（变为空产物），
+//       把三者 force 到同一版本即可消除重复。
+configurations.all {
+    resolutionStrategy {
+        force "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+    }
+}
