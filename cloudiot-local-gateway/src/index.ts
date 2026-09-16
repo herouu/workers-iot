@@ -6,6 +6,10 @@ import { startHttpServer } from './server/http';
 import { startMqttServer, stopMqttServer } from './server/mqtt';
 import { cloudSync } from './services/cloud-sync';
 import { startMdnsService, stopMdnsService } from './services/mdns';
+import { startStaleScan } from './services/presence';
+
+// 心跳扫描定时器句柄（优雅关闭时清理）
+let staleScanTimer: NodeJS.Timeout | null = null;
 
 async function main() {
   console.log('========================================');
@@ -20,6 +24,13 @@ async function main() {
   // 2. 启动定时清理
   startCleanupScheduler();
   console.log('[cleanup] scheduler started');
+
+  // 2.1 启动心跳超时扫描（HTTP 通道设备无心跳自动下线）
+  // HTTP 通道无长连接，靠 last_seen 超时判定：TTL 内无上报即置 online=0
+  staleScanTimer = startStaleScan(config.presenceStaleTtl, config.presenceScanInterval);
+  console.log(
+    `[presence] stale scan started (TTL=${config.presenceStaleTtl}ms, interval=${config.presenceScanInterval}ms)`
+  );
 
   // 3. 启动 HTTP Server
   startHttpServer();
@@ -55,6 +66,13 @@ async function shutdown(signal: string) {
 
   // 停止 mDNS
   stopMdnsService();
+
+  // 停止心跳扫描
+  if (staleScanTimer) {
+    clearInterval(staleScanTimer);
+    staleScanTimer = null;
+    console.log('[shutdown] stale scan stopped');
+  }
 
   // 停止 MQTT
   await stopMqttServer();
