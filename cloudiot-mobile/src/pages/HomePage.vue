@@ -47,7 +47,7 @@
       
       <!-- 选项卡导航 -->
       <div class="px-5 pb-2">
-        <TabsList class="w-full bg-transparent p-0 gap-6 justify-start">
+        <TabsList class="w-full bg-transparent p-0 gap-6 justify-start overflow-x-auto no-scrollbar">
           <TabsTrigger 
             v-for="tab in tabs" 
             :key="tab.id"
