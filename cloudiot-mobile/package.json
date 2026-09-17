@@ -11,7 +11,8 @@
     "cap:add": "cap add android",
     "cap:sync": "cap sync android",
     "cap:open": "cap open android",
-    "cap:copy": "cap copy android"
+    "cap:copy": "cap copy android",
+    "cap:run": "npx cap run android"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

@@ -19,18 +19,18 @@
     <div class="px-5 py-4 space-y-4">
       <div class="bg-surface-card rounded-2xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-4">
-          <span class="text-text-secondary">用户名</span>
+          <span class="text-text-secondary whitespace-nowrap flex-shrink-0 mr-4">用户名</span>
           <input 
-            class="bg-transparent text-text-primary text-right outline-none" 
+            class="bg-transparent text-text-primary flex-1 min-w-0 text-right outline-none" 
             v-model="formData.username" 
             placeholder="请输入用户名"
           />
         </div>
         <div class="h-px bg-surface-elevated/50 mx-4"></div>
         <div class="flex items-center justify-between px-4 py-4">
-          <span class="text-text-secondary">手机号</span>
+          <span class="text-text-secondary whitespace-nowrap flex-shrink-0 mr-4">手机号</span>
           <input 
-            class="bg-transparent text-text-primary text-right outline-none" 
+            class="bg-transparent text-text-primary flex-1 min-w-0 text-right outline-none" 
             v-model="formData.phone" 
             placeholder="请输入手机号"
             type="tel"
@@ -38,9 +38,9 @@
         </div>
         <div class="h-px bg-surface-elevated/50 mx-4"></div>
         <div class="flex items-center justify-between px-4 py-4">
-          <span class="text-text-secondary">邮箱</span>
+          <span class="text-text-secondary whitespace-nowrap flex-shrink-0 mr-4">邮箱</span>
           <input 
-            class="bg-transparent text-text-primary text-right outline-none" 
+            class="bg-transparent text-text-primary flex-1 min-w-0 text-right outline-none" 
             v-model="formData.email" 
             placeholder="请输入邮箱"
             type="email"
